@@ -1,4 +1,4 @@
-// #define DEBUG
+#define DEBUG
 
 #ifdef DEBUG
 #include <iostream>
@@ -123,7 +123,7 @@ void do_compute(stream<my_ap_axis >& in, stream<my_ap_axis >& out, const unsigne
     //             cout << data[n][i][j] << " ";
     //     }
     // return;
-    // 输入数据没问�??
+    // 输入数据没问�??
 #endif
 
     hls::stream<ap_uint<CONV_0_OUT_BIT * CONV_0_OFM_CH>>  conv_0_out("conv_0_out");
