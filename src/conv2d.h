@@ -60,12 +60,12 @@ void conv3x3_bn_act(stream<ap_uint<IN_BIT * IN_CH>> &in,
   // cout << "adj_out size " << adj_out.size() << endl;
   // 矩阵向量计算
   //   stream<ap_uint<PE * OUT_BIT>> mvau_out("mvau_out");
-  stream<ap_uint<PE * M_BIT>> mvau_out("mvau_out");
+  stream<ap_uint<PE * OUT_BIT>> mvau_out("mvau_out");
   matrix_vector_act_unit<IN_CH * 3 * 3, OUT_CH, IN_BIT, OUT_BIT, W_BIT, M_BIT,
                          INC_BIT, BIAS_BIT, SIMD, PE, L_SHIFT,
                          OUT_ROW * OUT_COL>(adj_out, weights, inc, bias,
                                             mvau_out, reps);
-  print_mavu_stream_through<3, OUT_ROW, OUT_COL, OUT_CH, PE, M_BIT>(
+  print_mavu_stream_through<3, OUT_ROW, OUT_COL, OUT_CH, PE, OUT_BIT>(
       mvau_out, "output_gold.txt");
   // cout << "mvau_out size " << mvau_out.size() << endl;
   //   StreamingDataWidthConverter_Batch<PE * OUT_BIT, OUT_CH * OUT_BIT,

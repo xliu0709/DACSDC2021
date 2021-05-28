@@ -25,11 +25,11 @@ void SWU_reordered(stream<ap_uint<Cin * Ibit>> &in,
   static_assert(Cin % SIMD == 0, "Cin mod SIMD is not 0");
   static_assert(K >= S, "K is not >= than S");
 
-  constexpr unsigned line_buffer_size = K * Din_W;
+  const unsigned line_buffer_size = K * Din_W;
   // const unsigned steps = (Din_W ;
 
-  constexpr unsigned SIMDbit = SIMD * Ibit;
-  constexpr unsigned SIMDgroupNum = Cin / SIMD;
+  const unsigned SIMDbit = SIMD * Ibit;
+  const unsigned SIMDgroupNum = Cin / SIMD;
 
   ap_uint<SIMD * Ibit> line_buffer[SIMDgroupNum][line_buffer_size];
 #pragma HLS ARRAY_PARTITION variable linebuffer dim = 1 complete
@@ -41,9 +41,6 @@ void SWU_reordered(stream<ap_uint<Cin * Ibit>> &in,
   unsigned stride = 0;
   unsigned pointer = 0;
   unsigned h = 0;
-
-  cout << "here" << endl;
-  fflush(stdout);
 
   for (unsigned rep = 0; rep < reps * Din_H; rep++) {
     for (unsigned w = 0; w < Din_W; w++) {
@@ -88,7 +85,6 @@ void SWU_reordered(stream<ap_uint<Cin * Ibit>> &in,
 #ifdef SWU_DEBUG
           cout << "read_address: " << read_address << endl;
 #endif
-          cout << "r,c,ch" << r << "," << c << "," << ch << endl;
 
           ap_uint<SIMDbit * 2> temp_out = (line_buffer[ch][read_address + 1],
                                            line_buffer[ch][read_address]);
@@ -204,11 +200,20 @@ void simd_MAC_normal(ap_int<W_BIT * SIMD> w0, ap_int<W_BIT * SIMD> w1,
     ap_uint<IN_BIT> x0_seg = i0((i + 1) * IN_BIT - 1, i * IN_BIT);
     ap_uint<IN_BIT> x1_seg = i1((i + 1) * IN_BIT - 1, i * IN_BIT);
 
+    // cout << "Weight :" << w0_seg << "," << w1_seg << "," << w2_seg << ",";
+    // cout << "Input :" << x0_seg << "," << x1_seg << endl;
+
+    // cout << x1_seg * w0_seg << ",";
+    // cout << x0_seg * w0_seg + x1_seg * w1_seg << ",";
+    // cout << x0_seg * w1_seg + x1_seg * w2_seg << ",";
+    // cout << x0_seg * w2_seg << endl;
+
     r0 += x0_seg * w2_seg;
-    r1 += x0_seg * w0_seg + x1_seg * w1_seg;
-    r2 += x0_seg * w1_seg + x1_seg * w2_seg;
+    r1 += x0_seg * w1_seg + x1_seg * w2_seg;
+    r2 += x0_seg * w0_seg + x1_seg * w1_seg;
     r3 += x1_seg * w0_seg;
   }
+  // getchar();
   partial0 = r0;
   partial1 = r1;
   partial2 = r2;
@@ -281,15 +286,20 @@ void simd_MAC_compare(ap_int<PROD_BIT * 2 + W_BIT> wpack[SIMD],
     ap_int<W_BIT> w2_seg = w2((i + 1) * W_BIT - 1, i * W_BIT);
     ap_uint<IN_BIT> x0_seg = i0((i + 1) * IN_BIT - 1, i * IN_BIT);
     ap_uint<IN_BIT> x1_seg = i1((i + 1) * IN_BIT - 1, i * IN_BIT);
-    cout << "Weight :" << w0_seg << "," << w1_seg << "," << w2_seg << endl;
-    cout << "Input :" << x0_seg << "," << x1_seg << endl;
-    cout << "Wpack :" << wpack[i] << endl;
-    cout << "Ipack :" << ipack[i] << endl;
+    // cout << "Weight :" << w0_seg << "," << w1_seg << "," << w2_seg << endl;
+    // cout << "Input :" << x0_seg << "," << x1_seg << endl;
+    // cout << "Wpack :" << wpack[i] << endl;
+    // cout << "Ipack :" << ipack[i] << endl;
 
-    cout << r0 << "," << p0 << "," << x0_seg * w2_seg << endl;
-    cout << r1 << "," << p1 << "," << x0_seg * w0_seg + x1_seg * w1_seg << endl;
-    cout << r2 << "," << p2 << "," << x0_seg * w1_seg + x1_seg * w2_seg << endl;
-    cout << r3 << "," << p3 << "," << x1_seg * w0_seg << endl;
+    // cout << r0 << "," << p0 << "," << x0_seg * w2_seg << endl;
+    // cout << r1 << "," << p1 << "," << x0_seg * w1_seg + x1_seg * w2_seg <<
+    // endl; cout << r2 << "," << p2 << "," << x0_seg * w0_seg + x1_seg * w1_seg
+    // << endl; cout << r3 << "," << p3 << "," << x1_seg * w0_seg << endl;
+
+    // assert(p0 == x0_seg * w2_seg);
+    // assert(p1 == x0_seg * w1_seg + x1_seg * w2_seg);
+    // assert(p2 == x0_seg * w0_seg + x1_seg * w1_seg);
+    // assert(p3 == x1_seg * w0_seg);
 
     r0 += p0;
     r1 += p1;
@@ -311,8 +321,9 @@ void convDSPOpt(
     const ap_uint<SIMD * W_BIT> weights[PE][3][K * IN_CH / SIMD * OUT_CH / PE],
     const ap_int<INC_BIT> inc[PE][OUT_CH / PE],
     const ap_int<BIAS_BIT> bias[PE][OUT_CH / PE],
-    // stream<ap_uint<PE * OUT_BIT * 2>> &out,
-    stream<ap_uint<PE * M_BIT * 2>> &out, const unsigned reps = 1) {
+    stream<ap_uint<PE * OUT_BIT * 2>> &out,
+    // stream<ap_uint<PE * M_BIT * 2>> &out,
+    const unsigned reps = 1) {
 
   static_assert(SIMD % 8 == 0, "SIMD mod 8 !=0");
   const unsigned PENUM = OUT_CH / PE;
@@ -338,8 +349,8 @@ void convDSPOpt(
 #pragma HLS ARRAY_PARTITION variable = m_lo complete dim = 1
 
   // ap_uint<12> weightAddr = 0;
-  ap_int<PROD_BIT + 4> firPartialRes0[PE];
-  ap_int<PROD_BIT + 4> firPartialRes1[PE];
+  ap_int<M_BIT> firPartialRes0[PE];
+  ap_int<M_BIT> firPartialRes1[PE];
 
   ap_int<M_BIT> outPartialArr0[PE];
 #pragma HLS ARRAY_PARTITION variable = outPartialArr0 complete dim = 1
@@ -367,51 +378,62 @@ void convDSPOpt(
                 weights[p][0][peIdx * INFOLD + infoldIdx], wpacks[p]);
           }
 
-          ap_int<PROD_BIT + 5> firPartial0[PE];
-          ap_int<PROD_BIT + 5> firPartial1[PE];
-          ap_int<PROD_BIT + 5> firPartial2[PE];
-          ap_int<PROD_BIT + 5> firPartial3[PE];
-
           for (int p = 0; p < PE; p++) {
-            cout << "FIR result compare " << endl;
+            // cout << "FIR result compare " << endl;
 
-            ap_int<PROD_BIT + 5> testPartial0;
-            ap_int<PROD_BIT + 5> testPartial1;
-            ap_int<PROD_BIT + 5> testPartial2;
-            ap_int<PROD_BIT + 5> testPartial3;
-            // simd_MAC<W_BIT, IN_BIT, PROD_BIT, SIMD, 4>(
-            //     wpacks[p], ipack, firPartial0[p], firPartial1[p],
-            //     firPartial2[p], firPartial3[p]);
-            simd_MAC_compare<W_BIT, IN_BIT, PROD_BIT, SIMD>(
-                wpacks[p], ipack, weights[p][0][peIdx * INFOLD + infoldIdx],
-                weights[p][1][peIdx * INFOLD + infoldIdx],
-                weights[p][2][peIdx * INFOLD + infoldIdx], data0, data1,
-                testPartial0, testPartial1, testPartial2, testPartial3);
+            ap_int<PROD_BIT + 5> firPartial0;
+            ap_int<PROD_BIT + 5> firPartial1;
+            ap_int<PROD_BIT + 5> firPartial2;
+            ap_int<PROD_BIT + 5> firPartial3;
 
-            getchar();
+            // simd_MAC_normal<W_BIT, IN_BIT, SIMD, PROD_BIT>(
+            //     weights[p][0][peIdx * INFOLD + infoldIdx],
+            //     weights[p][1][peIdx * INFOLD + infoldIdx],
+            //     weights[p][2][peIdx * INFOLD + infoldIdx], data0, data1,
+            //     firPartial0, firPartial1, firPartial2, firPartial3);
+            simd_MAC<W_BIT, IN_BIT, PROD_BIT, SIMD, 4>(
+                wpacks[p], ipack, firPartial0, firPartial1, firPartial2,
+                firPartial3);
+            // getchar();
 
             if (o_clear) {
-              outPartialArr0[p] = firPartial0[p] + firPartialRes0[p];
-              outPartialArr1[p] = firPartial1[p] + firPartialRes1[p];
+              outPartialArr0[p] = firPartial0 + firPartialRes0[p];
+              outPartialArr1[p] = firPartial1 + firPartialRes1[p];
+              firPartialRes0[p] = firPartial2;
+              firPartialRes1[p] = firPartial3;
             } else {
-              outPartialArr0[p] += firPartial0[p] + firPartialRes0[p];
-              outPartialArr1[p] += firPartial1[p] + firPartialRes1[p];
+              outPartialArr0[p] += firPartial0;
+              outPartialArr1[p] += firPartial1;
+              firPartialRes0[p] += firPartial2;
+              firPartialRes1[p] += firPartial3;
             }
-            firPartialRes0[p] = firPartial2[p];
-            firPartialRes1[p] = firPartial3[p];
-            // cout << outPartialArr1[p] << "," << outPartialArr0[p] << ",";
+
+            // if (p == 0) {
+            //   cout << firPartial0 << "," << firPartial1 << "," << firPartial2
+            //        << "," << firPartial3 << endl;
+            //   cout << outPartialArr0[p] << "," << outPartialArr1[p] << endl;
+            //   getchar();
+            // }
           }
-          ap_int<M_BIT * PE> oData0;
-          ap_int<M_BIT * PE> oData1;
+          ap_int<OUT_BIT * PE> oData0;
+          ap_int<OUT_BIT * PE> oData1;
 
           if (o_out) {
-            ap_uint<PE * M_BIT> out_buf0;
-            ap_uint<PE * M_BIT> out_buf1;
+            // ap_uint<PE * M_BIT> out_buf0;
+            // ap_uint<PE * M_BIT> out_buf1;
             for (int p = 0; p < PE; p++) {
-              out_buf0(p * M_BIT + M_BIT - 1, p * M_BIT) = outPartialArr0[p];
-              out_buf1(p * M_BIT + M_BIT - 1, p * M_BIT) = outPartialArr1[p];
+              // out_buf0(p * M_BIT + M_BIT - 1, p * M_BIT) = outPartialArr0[p];
+              // out_buf1(p * M_BIT + M_BIT - 1, p * M_BIT) = outPartialArr1[p];
+              oData0((p + 1) * OUT_BIT - 1, p * OUT_BIT) =
+                  bn_qurelu<M_BIT, OUT_BIT, INC_BIT, BIAS_BIT, IN_BIT, W_BIT,
+                            L_SHIFT>(outPartialArr0[p], inc[p][peIdx],
+                                     bias[p][peIdx]);
+              oData1((p + 1) * OUT_BIT - 1, p * OUT_BIT) =
+                  bn_qurelu<M_BIT, OUT_BIT, INC_BIT, BIAS_BIT, IN_BIT, W_BIT,
+                            L_SHIFT>(outPartialArr1[p], inc[p][peIdx],
+                                     bias[p][peIdx]);
             }
-            out.write((out_buf1, out_buf0));
+            out.write((oData1, oData0));
             // weightAddr = 0;
           }
         }
@@ -470,12 +492,12 @@ void conv3x3_bn_act_DSPopt(
   // print_SWU_stream_through<3, IN_ROW, IN_COL, IN_CH, SIMD, IN_BIT, OUT_CH /
   // PE>(
   //     swu_reorder_out, "swu_reorder_out.txt");
-  stream<ap_uint<PE * M_BIT * 2>> mvau_out("mvau_out");
+  stream<ap_uint<PE * OUT_BIT * 2>> mvau_out("mvau_out");
   convDSPOpt<3, IN_BIT, IN_CH, OUT_BIT, OUT_COL, OUT_ROW, OUT_CH, W_BIT, 3,
              M_BIT, INC_BIT, BIAS_BIT, SIMD, PE, L_SHIFT>(
       swu_reorder_out, weights, inc, bias, mvau_out);
 
-  print_mavu_DSPopt_stream_through<OUT_ROW, OUT_COL, OUT_CH, PE, M_BIT>(
+  print_mavu_DSPopt_stream_through<OUT_ROW, OUT_COL, OUT_CH, PE, OUT_BIT>(
       mvau_out, "output.txt");
   // SWU<3, 1, INTER_ROW, INTER_COL, IN_CH, IN_BIT>(padding_out, swu_out, reps);
   // // 位宽调整
@@ -484,7 +506,6 @@ void conv3x3_bn_act_DSPopt(
   //                                   9 * OUT_ROW * OUT_COL>(swu_out, adj_out,
   //                                                          reps);
 
-  // cout << "adj_out size " << adj_out.size() << endl;
   // 矩阵向量计算
   // stream<ap_uint<PE * OUT_BIT>> mvau_out("mvau_out");
   // matrix_vector_act_unit<IN_CH * 3 * 3, OUT_CH, IN_BIT, OUT_BIT, W_BIT,

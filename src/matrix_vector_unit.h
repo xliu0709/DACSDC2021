@@ -171,8 +171,9 @@ void matrix_vector_act_unit(
     const ap_uint<SIMD * W_BIT> weights[PE][(MAT_ROW / SIMD) * (MAT_COL / PE)],
     const ap_int<INC_BIT> inc[PE][MAT_COL / PE],
     const ap_int<BIAS_BIT> bias[PE][MAT_COL / PE],
-    // stream<ap_uint<PE*OUT_BIT> >& out,
-    stream<ap_uint<PE * M_BIT>> &out, const unsigned reps = 1) {
+    stream<ap_uint<PE * OUT_BIT>> &out,
+    // stream<ap_uint<PE * M_BIT>> &out,
+    const unsigned reps = 1) {
   static_assert(MAT_ROW % SIMD == 0, "MAT_ROW mod SIMD is not 0");
   static_assert(MAT_COL % PE == 0, "MAT_COL mod PE is not 0");
 
@@ -237,15 +238,15 @@ void matrix_vector_act_unit(
     tile++;
     if (++in_fold_cnt == INPUT_FOLD) {
       in_fold_cnt = 0;
-      ap_uint<PE * M_BIT> out_buf;
+      ap_uint<PE * OUT_BIT> out_buf;
       // PE 列计算完成 可以输出
       for (unsigned p = 0; p < PE; p++) {
 #pragma HLS UNROLL
-        // out_buf((p + 1) * OUT_BIT - 1, p * OUT_BIT) =
-        //     bn_qurelu<M_BIT, OUT_BIT, INC_BIT, BIAS_BIT, IN_BIT, W_BIT,
-        //               L_SHIFT>(acc[p], inc[p][out_fold_cnt],
-        //                        bias[p][out_fold_cnt]);
-        out_buf((p + 1) * M_BIT - 1, p * M_BIT) = acc[p];
+        out_buf((p + 1) * OUT_BIT - 1, p * OUT_BIT) =
+            bn_qurelu<M_BIT, OUT_BIT, INC_BIT, BIAS_BIT, IN_BIT, W_BIT,
+                      L_SHIFT>(acc[p], inc[p][out_fold_cnt],
+                               bias[p][out_fold_cnt]);
+        // out_buf((p + 1) * M_BIT - 1, p * M_BIT) = acc[p];
         // cout << acc[p] << " " << out_buf((p+1)*OUT_BIT-1, p*OUT_BIT) << " "
         // << inc[p][out_fold_cnt] << " " << bias[p][out_fold_cnt] << "     ";
         // acc[p] = 0;

@@ -7,6 +7,35 @@
 #include <string>
 using namespace std;
 
+// template <unsigned K, unsigned SIMD, unsigned PE, unsigned IN_CH,
+//           unsigned OUT_CH, unsigned W_BIT>
+// void reorder_weight(
+//     const ap_uint<W_BIT * SIMD> weights[PE][K * K * OUT_CH / PE * IN_CH /
+//                                             SIMD], // weights:
+//                                             PEMUM->K->K->SIMD
+//     ap_uint<W_BIT * SIMD * K> weights3[PE][K * OUT_CH / PE * IN_CH / SIMD]) {
+
+//   const unsigned PENUM = OUT_CH / PE;
+//   const unsigned SIMDNUM = IN_CH / SIMD;
+
+//   for (int peIdx = 0; peIdx < PENUM; peIdx++)
+//     for (int kr = 0; kr < K; kr++)
+//       for (int p = 0; p < PE; p++) {
+//         for (int simdIdx = 0; simdIdx < SIMDNUM; simdIdx++) {
+//           unsigned weights3Addr = peIdx * K * SIMDNUM + kr * SIMDNUM +
+//           simdIdx; ap_uint<K *W_BIT> data3 = 0; for (int kc = 0; kc < K;
+//           kc++) {
+//             for (int i = 0; i < SIMD; i++) {
+//               unsigned weightsAddr = peIdx * K * K * SIMDNUM +
+//                                      kr * K * SIMDNUM + kc * SIMDNUM +
+//                                      simdIdx;
+//               weights3[p][kc][weights3Addr] = weights[p][weightsAddr];
+//             }
+//           }
+//         }
+//       }
+// }
+
 template <unsigned K, unsigned SIMD, unsigned PE, unsigned IN_CH,
           unsigned OUT_CH, unsigned W_BIT>
 void reorder_weight(
