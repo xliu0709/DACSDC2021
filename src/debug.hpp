@@ -4,9 +4,8 @@
 #include <ap_int.h>
 #include <fstream>
 #include <hls_stream.h>
-#include <string>
 #include <iomanip>
-
+#include <string>
 
 using namespace std;
 template <unsigned OUT_ROW, unsigned OUT_COL, unsigned OUT_CH, unsigned OUT_BIT>
@@ -91,7 +90,7 @@ void print_mavu_DSPopt_stream_through(hls::stream<ap_uint<BIT * PE * 2>> &out,
       for (int peIdx = 0; peIdx < CH / PE; peIdx++) {
         for (int p = 0; p < PE; p++) {
           unsigned data = buffer[peIdx][c].range(p * BIT + BIT - 1, p * BIT);
-          f << setw(8) << hex << data << ",";
+          f << setw(2) << hex << data << ",";
         }
       }
       f << endl;
@@ -108,13 +107,13 @@ void print_mavu_stream_through(hls::stream<ap_uint<BIT * CH>> &out,
     for (int c = 0; c < COL; c++) {
       f << "[" << setw(4) << r << "," << setw(4) << c << "]";
       ap_uint<PE *CH> outdata = out.read();
-      for (int c = 0; c < CH; c++) {
-        unsigned data = outdata.range(c * BIT + BIT - 1, c * BIT);
-        f << setw(8) << hex << data << ",";
+      for (int ch = 0; ch < CH; ch++) {
+        unsigned data = outdata.range(ch * BIT + BIT - 1, ch * BIT);
+        f << setw(2) << hex << data << ",";
       }
       f << endl;
     }
-    f.close();
   }
+  f.close();
 }
 #endif
