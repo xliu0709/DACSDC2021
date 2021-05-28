@@ -13,6 +13,119 @@ using namespace hls;
 
 #define CEILDIV(x, y) (((x) + (y)-1) / (y))
 
+template <unsigned IN_W, unsigned IN_CH, unsigned IN_BIT, unsigned IN_PE,
+          unsigned SIMD>
+void stream_in_row(
+    stream<ap_uint<IN_PE * IN_BIT>> &in,
+    ap_uint<IN_PE * IN_BIT * 2> row_buffer[SIMD / IN_PE][4]
+                                          [(IN_W / 2 + 1) * IN_CH / SIMD],
+    bool skip_flag, ap_uint<2> rowBufferIdx) {
+
+  if (skip_flag)
+    return;
+  for (unsigned peIdx = 0; peIdx < IN_CH / IN_PE; peIdx++)
+    for (unsigned w = 0; w < IN_W / 2 + 1; w++) {
+#pragma HLS pipeline
+      ap_uint<IN_PE * IN_BIT * 2> data;
+      ap_uint<IN_PE * IN_BIT> data0, data1;
+      if (w == 0)
+        data0 = 0;
+      else
+        data0 = in.read();
+
+      if (w == IN_W / 2)
+        data1 = 0;
+      else
+        data1 = in.read();
+
+      data = (data1, data0);
+      row_buffer[peIdx % (SIMD / IN_PE)][rowBufferIdx]
+                [w * IN_CH / SIMD + peIdx / (SIMD / IN_PE)] = data;
+    }
+}
+
+template <unsigned K, unsigned IN_H, unsigned IN_W, unsigned IN_CH,
+          unsigned IN_BIT, unsigned IN_PE, unsigned SIMD, unsigned OUTPENUM>
+void stream_out_data(
+    stream<ap_uint<SIMD * IN_BIT * 2>> &out,
+    ap_uint<IN_PE * IN_BIT * 2> row_buffer[SIMD / IN_PE][4]
+                                          [(IN_W / 2 + 1) * IN_CH / SIMD],
+    bool skip_flag, ap_int<12> outRowIdx, ap_uint<2> startRowBufferIdx) {
+#pragma HLS array_partition variable = row_buffer dim = 1 compelte
+  const unsigned IN_PE_BIT = IN_PE * IN_BIT;
+
+  if (skip_flag)
+    return;
+
+  for (unsigned peIdx = 0; peIdx < OUTPENUM; peIdx++) {
+    for (unsigned w = 0; w < IN_W / 2 + 1; w++) {
+      for (unsigned wr = 0; wr < K; wr++) {
+        for (unsigned simdIdx = 0; simdIdx < IN_CH / SIMD; simdIdx++) {
+#pragma HLS pipeline
+          ap_uint<SIMD * IN_BIT> data0;
+          ap_uint<SIMD * IN_BIT> data1;
+          ap_uint<IN_PE * IN_BIT * 2> buffer_data[SIMD / IN_PE];
+#pragma HLS array_partition variable = buff_data compelte
+          ap_uint<2> rowBufferIdx = startRowBufferIdx + wr;
+          for (unsigned i = 0; i < SIMD / IN_PE; i++) {
+            buffer_data[i] =
+                row_buffer[i][rowBufferIdx][w * IN_CH / SIMD + simdIdx];
+          }
+
+          if (outRowIdx - K / 2 + wr < 0 || outRowIdx - K / 2 + wr >= IN_H) {
+            data0 = 0;
+            data1 = 0;
+          } else {
+            for (unsigned i = 0; i < SIMD / IN_PE; i++) {
+              data0((i + 1) * IN_PE_BIT - 1, i * IN_PE_BIT) =
+                  buffer_data[i](IN_PE_BIT - 1, 0);
+              data1((i + 1) * IN_PE_BIT - 1, i * IN_PE_BIT) =
+                  buffer_data[i](IN_PE_BIT * 2 - 1, IN_PE_BIT);
+            }
+          }
+          out.write((data1, data0));
+        }
+      }
+    }
+  }
+}
+
+template <unsigned K, unsigned IN_H, unsigned IN_W, unsigned IN_CH,
+          unsigned IN_BIT, unsigned IN_PE, unsigned SIMD, unsigned OUTPENUM>
+void conv3padding(stream<ap_uint<IN_PE * IN_BIT>> &in,
+                  stream<ap_uint<SIMD * IN_BIT * 2>> &out,
+                  const unsigned reps = 1) {
+  static_assert(SIMD % IN_PE == 0, "SIMD %IN_PE !=0");
+  static_assert(K == 3, "K!=3");
+
+  ap_uint<IN_PE * IN_BIT * 2> row_buffer[SIMD / IN_PE][4]
+                                        [(IN_W / 2 + 1) * IN_CH / SIMD];
+#pragma HLS ARRAY_PARTITION variable = row_buffer dim = 1 complete
+
+  ap_uint<8> inh = 0;
+  ap_uint<8> outh = 0;
+
+  ap_uint<2> storeBufferIdx = 0;
+  ap_uint<2> loadBufferIdx = 1;
+  ap_int<10> rowIdx = -2;
+
+  for (unsigned rep = 0; rep < reps * IN_H + 2; rep++) {
+#pragma HLS dependence intra false varaible = row_buffer
+#pragma HLS dependence inter false varaible = row_buffer
+    stream_in_row<IN_W, IN_CH, IN_BIT, IN_PE, SIMD>(
+        in, row_buffer, (rep >= reps * IN_H), storeBufferIdx);
+    stream_out_data<K, IN_H, IN_W, IN_CH, IN_BIT, IN_PE, SIMD, OUTPENUM>(
+        out, row_buffer, (rep < 2), rowIdx, loadBufferIdx);
+    loadBufferIdx++;
+    storeBufferIdx++;
+    if (rowIdx == IN_H - 1) {
+      rowIdx = 0;
+    } else {
+      rowIdx++;
+    }
+  }
+}
+
 template <unsigned K, unsigned S, unsigned Din_H, unsigned Din_W, unsigned Cin,
           unsigned SIMD, unsigned Ibit, unsigned PENUM>
 void SWU_reordered(stream<ap_uint<Cin * Ibit>> &in,
@@ -105,10 +218,6 @@ void SWU_reordered(stream<ap_uint<Cin * Ibit>> &in,
   }
 }
 
-
-
-
-
 template <unsigned IN_BIT, unsigned SIMD, unsigned PROD_BIT>
 void pack_input_data(ap_uint<IN_BIT * SIMD> A, ap_uint<IN_BIT * SIMD> B,
                      ap_uint<PROD_BIT + IN_BIT> ipack[SIMD]) {
@@ -168,7 +277,6 @@ void simd_MAC_normal(ap_int<W_BIT * SIMD> w0, ap_int<W_BIT * SIMD> w1,
     r2 += x0_seg * w0_seg + x1_seg * w1_seg;
     r3 += x1_seg * w0_seg;
   }
-  // getchar();
   partial0 = r0;
   partial1 = r1;
   partial2 = r2;
@@ -176,22 +284,22 @@ void simd_MAC_normal(ap_int<W_BIT * SIMD> w0, ap_int<W_BIT * SIMD> w1,
 }
 
 template <unsigned W_BIT, unsigned IN_BIT, unsigned PROD_BIT, unsigned SIMD,
-          unsigned CASCADE_NUM>
+          unsigned CASCADE>
 void simd_MAC(ap_int<PROD_BIT * 2 + W_BIT> wpack[SIMD],
               ap_uint<PROD_BIT + IN_BIT> ipack[SIMD],
               ap_int<PROD_BIT + 5> &partial0, ap_int<PROD_BIT + 5> &partial1,
               ap_int<PROD_BIT + 5> &partial2, ap_int<PROD_BIT + 5> &partial3) {
-#pragma HLS ARRAY_PARTITION variable=wpack complete
-#pragma HLS ARRAY_PARTITION variable=ipack complete
+#pragma HLS ARRAY_PARTITION variable = wpack complete
+#pragma HLS ARRAY_PARTITION variable = ipack complete
   ap_int<PROD_BIT + 5> r0, r1, r2, r3;
   r0 = 0;
   r1 = 0;
   r2 = 0;
   r3 = 0;
-  for (int i = 0; i < SIMD; i += CASCADE_NUM) {
+  for (int i = 0; i < SIMD; i += CASCADE) {
 #pragma HLS unroll
     ap_int<PROD_BIT * 4> m = 0;
-    for (int cs = 0; cs < CASCADE_NUM; cs++) {
+    for (int cs = 0; cs < CASCADE; cs++) {
 #pragma HLS unroll
       m += wpack[i + cs] * ipack[i + cs];
     }
@@ -273,7 +381,8 @@ void simd_MAC_compare(ap_int<PROD_BIT * 2 + W_BIT> wpack[SIMD],
 template <unsigned K, unsigned IN_BIT, unsigned IN_CH, unsigned OUT_BIT,
           unsigned OUT_W, unsigned OUT_H, unsigned OUT_CH, unsigned W_BIT,
           unsigned GUARD_BIT, unsigned M_BIT, unsigned INC_BIT,
-          unsigned BIAS_BIT, unsigned SIMD, unsigned PE, unsigned L_SHIFT>
+          unsigned BIAS_BIT, unsigned SIMD, unsigned CASCADE, unsigned PE,
+          unsigned L_SHIFT>
 void convDSPOpt(
     stream<ap_uint<SIMD * IN_BIT * 2>> &vec,
     const ap_uint<SIMD * W_BIT> weights[PE][3][K * IN_CH / SIMD * OUT_CH / PE],
@@ -283,7 +392,9 @@ void convDSPOpt(
     // stream<ap_uint<PE * M_BIT * 2>> &out,
     const unsigned reps = 1) {
 
-  static_assert(SIMD % 8 == 0, "SIMD mod 8 !=0");
+  static_assert(IN_CH % SIMD == 0, "IN_CH % SIMD !=0");
+  static_assert(SIMD % CASCADE == 0, "SIMD % CASCADE != 0");
+  static_assert(CASCADE <= 4, "SIMD % CASCADE != 0");
   const unsigned PENUM = OUT_CH / PE;
   const unsigned SIMDNUM = IN_CH / SIMD;
   const unsigned PROD_BIT = W_BIT + IN_BIT + GUARD_BIT;
@@ -349,7 +460,7 @@ void convDSPOpt(
             //     weights[p][1][peIdx * INFOLD + infoldIdx],
             //     weights[p][2][peIdx * INFOLD + infoldIdx], data0, data1,
             //     firPartial0, firPartial1, firPartial2, firPartial3);
-            simd_MAC<W_BIT, IN_BIT, PROD_BIT, SIMD, 4>(
+            simd_MAC<W_BIT, IN_BIT, PROD_BIT, SIMD, CASCADE>(
                 wpacks[p], ipack, firPartial0, firPartial1, firPartial2,
                 firPartial3);
             // getchar();
@@ -420,9 +531,10 @@ template <unsigned IN_ROW, unsigned IN_COL, unsigned IN_CH, unsigned IN_BIT,
 
           unsigned W_BIT, unsigned M_BIT, unsigned INC_BIT, unsigned BIAS_BIT,
 
-          unsigned SIMD, unsigned PE, unsigned L_SHIFT>
+          unsigned SIMD, unsigned CASCADE, unsigned IN_PE, unsigned PE,
+          unsigned L_SHIFT>
 void conv3x3_bn_act_DSPopt(
-    stream<ap_uint<IN_BIT * IN_CH>> &in,
+    stream<ap_uint<IN_BIT * IN_PE>> &in,
     const ap_uint<SIMD * W_BIT> weights[PE][3]
                                        [((IN_CH * 3) / SIMD) * (OUT_CH / PE)],
     const ap_int<INC_BIT> inc[PE][OUT_CH / PE],
@@ -436,42 +548,14 @@ void conv3x3_bn_act_DSPopt(
   const unsigned OUT_ROW = IN_ROW;
   const unsigned OUT_COL = IN_COL;
 
-  // stream<ap_uint<IN_CH*IN_BIT> > in_adj("in_adj");
-  // StreamingDataWidthConverter_Batch<IN_STREAM_BIT, IN_CH*IN_BIT>(in,
-  // in_adj, reps); pading
-  stream<ap_uint<IN_CH * IN_BIT>> padding_out("samepad_out");
-  padding<IN_ROW, IN_COL, IN_CH, IN_BIT, 1>(in, padding_out, reps);
+  stream<ap_uint<SIMD * IN_BIT * 2>> padding_out("padding_out");
+  conv3padding<3, IN_ROW, IN_COL, IN_CH, IN_BIT, IN_PE, SIMD, OUT_CH / PE>(
+      in, padding_out);
 
-  stream<ap_uint<SIMD * IN_BIT * 2>> swu_reorder_out("swu_reorder_out");
-  SWU_reordered<3, 1, INTER_ROW, INTER_COL, IN_CH, SIMD, IN_BIT, OUT_CH / PE>(
-      padding_out, swu_reorder_out, reps);
-  // print_SWU_stream_through<3, IN_ROW, IN_COL, IN_CH, SIMD, IN_BIT, OUT_CH /
-  // PE>(
-  //     swu_reorder_out, "swu_reorder_out.txt");
-  // stream<ap_uint<PE * OUT_BIT * 2>> mvau_out("mvau_out");
+  stream<ap_uint<PE * OUT_BIT * 2>> mvau_out("mvau_out");
   convDSPOpt<3, IN_BIT, IN_CH, OUT_BIT, OUT_COL, OUT_ROW, OUT_CH, W_BIT, 3,
-             M_BIT, INC_BIT, BIAS_BIT, SIMD, PE, L_SHIFT>(
-      swu_reorder_out, weights, inc, bias, out);
-
-  // print_mavu_DSPopt_stream_through<OUT_ROW, OUT_COL, OUT_CH, PE, OUT_BIT>(
-  //     mvau_out, "output.txt");
-  // SWU<3, 1, INTER_ROW, INTER_COL, IN_CH, IN_BIT>(padding_out, swu_out, reps);
-  // // 位宽调整
-  // stream<ap_uint<SIMD * IN_BIT>> adj_out("adj_out");
-  // StreamingDataWidthConverter_Batch<IN_CH * IN_BIT, SIMD * IN_BIT,
-  //                                   9 * OUT_ROW * OUT_COL>(swu_out, adj_out,
-  //                                                          reps);
-
-  // 矩阵向量计算
-  // stream<ap_uint<PE * OUT_BIT>> mvau_out("mvau_out");
-  // matrix_vector_act_unit<IN_CH * 3 * 3, OUT_CH, IN_BIT, OUT_BIT, W_BIT,
-  // M_BIT,
-  //                        INC_BIT, BIAS_BIT, SIMD, PE, L_SHIFT,
-  //                        OUT_ROW * OUT_COL>(adj_out, weights, inc, bias,
-  //                                           mvau_out, reps);
-  // // cout << "mvau_out size " << mvau_out.size() << endl;
-  // StreamingDataWidthConverter_Batch<PE*OUT_BIT, OUT_CH*OUT_BIT, OUT_ROW
-  // * OUT_COL * OUT_CH / PE>(mvau_out, out, reps);
+             M_BIT, INC_BIT, BIAS_BIT, SIMD, CASCADE, PE, L_SHIFT>(
+      padding_out, weights, inc, bias, out);
 }
 
 #endif
