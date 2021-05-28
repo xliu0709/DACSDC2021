@@ -152,5 +152,15 @@ int main() {
   transform_weight_print<CONV_2_K, CONV_2_IFM_CH, CONV_2_OFM_CH, CONV_2_SIMD,
                          CONV_2_PE, CONV_2_SIMD_DSP6, CONV_2_PE, CONV_2_W_BIT>(
       conv_2_w, "conv_2_w_dspopt", of);
+
+  transform_weight_print<CONV_3_K, CONV_3_IFM_CH, CONV_3_OFM_CH, CONV_3_SIMD,
+                         CONV_3_PE, CONV_3_SIMD_DSP6, CONV_3_PE, CONV_3_W_BIT>(
+      conv_3_w, "conv_4_w_dspopt", of);
+  transform_weight_print<CONV_4_K, CONV_4_IFM_CH, CONV_4_OFM_CH, CONV_4_SIMD,
+                         CONV_4_PE, CONV_4_SIMD_DSP6, CONV_4_PE, CONV_4_W_BIT>(
+      conv_4_w, "conv_4_w_dspopt", of);
+  transform_weight_print<CONV_5_K, CONV_5_IFM_CH, CONV_5_OFM_CH, CONV_5_SIMD,
+                         CONV_5_PE, CONV_5_SIMD_DSP6, CONV_5_PE, CONV_5_W_BIT>(
+      conv_5_w, "conv_5_w_dspopt", of);
   of.close();
 }
