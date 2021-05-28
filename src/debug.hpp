@@ -81,6 +81,7 @@ void print_mavu_DSPopt_stream_through(hls::stream<ap_uint<BIT * PE * 2>> &out,
     for (int peIdx = 0; peIdx < CH / PE; peIdx++) {
       for (int c = 0; c < COL; c += 2) {
         ap_uint<BIT *PE * 2> data = out.read();
+        out << data;
         buffer[peIdx][c] = data(BIT * PE - 1, 0);
         buffer[peIdx][c + 1] = data(BIT * PE * 2 - 1, BIT * PE);
       }
@@ -107,6 +108,7 @@ void print_mavu_stream_through(hls::stream<ap_uint<BIT * CH>> &out,
     for (int c = 0; c < COL; c++) {
       f << "[" << setw(4) << r << "," << setw(4) << c << "]";
       ap_uint<PE *CH> outdata = out.read();
+      out << outdata;
       for (int ch = 0; ch < CH; ch++) {
         unsigned data = outdata.range(ch * BIT + BIT - 1, ch * BIT);
         f << setw(2) << hex << data << ",";

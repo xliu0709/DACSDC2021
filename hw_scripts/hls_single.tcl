@@ -12,5 +12,6 @@ create_clock -period 4 -name default
 #source "./HLS_SINGLE/solution1/directives.tcl"
 #csim_design
 csynth_design
+export_design -flow syn -rtl verilog -format ip_catalog
 #cosim_design
 # export_design -format ip_catalog

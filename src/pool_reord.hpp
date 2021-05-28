@@ -29,6 +29,8 @@ void max_pool2x2(stream<ap_uint<PE * IN_BIT * 2>> &vec,
   ap_uint<PE * IN_BIT> row_store[IN_W / 2 * IN_CH / PE];
 
   bool load_flag;
+  ap_uint<IN_BIT * PE> dataOut0;
+  ap_uint<IN_BIT * PE> dataOut1;
   for (int h = 0; h < IN_H; h++)
     for (int peIdx = 0; peIdx < IN_CH / PE; peIdx++)
       for (int w = 0; w < IN_W / 2; w++) {
@@ -40,10 +42,15 @@ void max_pool2x2(stream<ap_uint<PE * IN_BIT * 2>> &vec,
         int addr = w * (IN_CH / PE) + peIdx;
         if (h % 2) {
           ap_uint<IN_BIT *PE> dataRes = row_store[addr];
-          ap_uint<IN_BIT *PE> dataOut = max2_PE<IN_BIT, PE>(dataMax2, dataRes);
-          out.write(dataOut);
+          dataOut0 = max2_PE<IN_BIT, PE>(dataMax2, dataRes);
+
         } else {
           row_store[addr] = dataMax2;
+        }
+        if (w % 2 && h % 2) {
+          dataOut1 = dataOut0;
+        } else {
+          out.write((dataOut1, dataOut0));
         }
       }
 }

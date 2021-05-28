@@ -16,29 +16,29 @@ using namespace hls;
 template <unsigned IN_W, unsigned IN_CH, unsigned IN_BIT, unsigned IN_PE,
           unsigned SIMD>
 void stream_in_row(
-    stream<ap_uint<IN_PE * IN_BIT>> &in,
+    stream<ap_uint<IN_PE * IN_BIT * 2>> &in,
     ap_uint<IN_PE * IN_BIT * 2> row_buffer[SIMD / IN_PE][4]
                                           [(IN_W / 2 + 1) * IN_CH / SIMD],
     bool skip_flag, ap_uint<2> rowBufferIdx) {
 
   if (skip_flag)
     return;
+  static ap_uint<IN_PE *IN_BIT> reg = 0;
+
   for (unsigned peIdx = 0; peIdx < IN_CH / IN_PE; peIdx++)
     for (unsigned w = 0; w < IN_W / 2 + 1; w++) {
 #pragma HLS pipeline
       ap_uint<IN_PE * IN_BIT * 2> data;
       ap_uint<IN_PE * IN_BIT> data0, data1;
-      if (w == 0)
-        data0 = 0;
-      else
-        data0 = in.read();
-
-      if (w == IN_W / 2)
+      if (w != (IN_W / 2)) {
+        (data1, data0) = in.read();
+      } else {
         data1 = 0;
-      else
-        data1 = in.read();
+        data0 = 0;
+      }
+      data = (data0, reg);
+      reg = data1;
 
-      data = (data1, data0);
       row_buffer[peIdx % (SIMD / IN_PE)][rowBufferIdx]
                 [w * IN_CH / SIMD + peIdx / (SIMD / IN_PE)] = data;
     }
@@ -51,7 +51,7 @@ void stream_out_data(
     ap_uint<IN_PE * IN_BIT * 2> row_buffer[SIMD / IN_PE][4]
                                           [(IN_W / 2 + 1) * IN_CH / SIMD],
     bool skip_flag, ap_int<12> outRowIdx, ap_uint<2> startRowBufferIdx) {
-#pragma HLS array_partition variable = row_buffer dim = 1 compelte
+#pragma HLS array_partition variable = row_buffer dim = 1 complete
   const unsigned IN_PE_BIT = IN_PE * IN_BIT;
 
   if (skip_flag)
@@ -65,7 +65,7 @@ void stream_out_data(
           ap_uint<SIMD * IN_BIT> data0;
           ap_uint<SIMD * IN_BIT> data1;
           ap_uint<IN_PE * IN_BIT * 2> buffer_data[SIMD / IN_PE];
-#pragma HLS array_partition variable = buff_data compelte
+#pragma HLS array_partition variable = buff_data complete
           ap_uint<2> rowBufferIdx = startRowBufferIdx + wr;
           for (unsigned i = 0; i < SIMD / IN_PE; i++) {
             buffer_data[i] =
@@ -92,7 +92,7 @@ void stream_out_data(
 
 template <unsigned K, unsigned IN_H, unsigned IN_W, unsigned IN_CH,
           unsigned IN_BIT, unsigned IN_PE, unsigned SIMD, unsigned OUTPENUM>
-void conv3padding(stream<ap_uint<IN_PE * IN_BIT>> &in,
+void conv3padding(stream<ap_uint<IN_PE * IN_BIT * 2>> &in,
                   stream<ap_uint<SIMD * IN_BIT * 2>> &out,
                   const unsigned reps = 1) {
   static_assert(SIMD % IN_PE == 0, "SIMD %IN_PE !=0");
@@ -110,8 +110,8 @@ void conv3padding(stream<ap_uint<IN_PE * IN_BIT>> &in,
   ap_int<10> rowIdx = -2;
 
   for (unsigned rep = 0; rep < reps * IN_H + 2; rep++) {
-#pragma HLS dependence intra false varaible = row_buffer
-#pragma HLS dependence inter false varaible = row_buffer
+#pragma HLS dependence intra false variable = row_buffer
+#pragma HLS dependence inter false variable = row_buffer
     stream_in_row<IN_W, IN_CH, IN_BIT, IN_PE, SIMD>(
         in, row_buffer, (rep >= reps * IN_H), storeBufferIdx);
     stream_out_data<K, IN_H, IN_W, IN_CH, IN_BIT, IN_PE, SIMD, OUTPENUM>(
@@ -122,98 +122,6 @@ void conv3padding(stream<ap_uint<IN_PE * IN_BIT>> &in,
       rowIdx = 0;
     } else {
       rowIdx++;
-    }
-  }
-}
-
-template <unsigned K, unsigned S, unsigned Din_H, unsigned Din_W, unsigned Cin,
-          unsigned SIMD, unsigned Ibit, unsigned PENUM>
-void SWU_reordered(stream<ap_uint<Cin * Ibit>> &in,
-                   stream<ap_uint<SIMD * Ibit * 2>> &out,
-                   const unsigned reps = 1) {
-  static_assert(S == 1, "S is not 1");
-  static_assert(Din_H % 2 == 0, "Din_H mod 2 is not 0");
-  static_assert((Din_W - K) % S == 0, "(Din_W-K) mod S is not 0");
-  static_assert((Din_H - K) % S == 0, "(Din_H-K) mod S is not 0");
-  static_assert(Cin % SIMD == 0, "Cin mod SIMD is not 0");
-  static_assert(K >= S, "K is not >= than S");
-
-  const unsigned line_buffer_size = K * Din_W;
-  // const unsigned steps = (Din_W ;
-
-  const unsigned SIMDbit = SIMD * Ibit;
-  const unsigned SIMDgroupNum = Cin / SIMD;
-
-  ap_uint<SIMD * Ibit> line_buffer[SIMDgroupNum][line_buffer_size];
-#pragma HLS ARRAY_PARTITION variable linebuffer dim = 1 complete
-#pragma HLS RESOURCE variable line_buffer core = RAM_2P
-
-  ap_uint<Cin * Ibit> temp_in;
-
-  ap_uint<1> initial_fill = 0;
-  unsigned stride = 0;
-  unsigned pointer = 0;
-  unsigned h = 0;
-
-  for (unsigned rep = 0; rep < reps * Din_H; rep++) {
-    for (unsigned w = 0; w < Din_W; w++) {
-#pragma HLS PIPELINE II = 1
-      temp_in = in.read();
-
-      unsigned line_buffer_pointer = pointer + w;
-      if (line_buffer_pointer >= line_buffer_size) {
-        line_buffer_pointer = line_buffer_pointer - line_buffer_size;
-      }
-      for (int i = 0; i < SIMDgroupNum; i++) {
-#pragma HLS unroll
-        ap_uint<SIMDbit> data = temp_in(i * SIMDbit + SIMDbit - 1, i * SIMDbit);
-        line_buffer[i][line_buffer_pointer] = data;
-      }
-    }
-
-    stride += 1;
-    pointer += Din_W;
-    if (pointer >= line_buffer_size) {
-      pointer = pointer - line_buffer_size;
-      initial_fill = 1;
-#ifdef SWU_DEBUG
-      cout << "initial_fill set to 1!" << endl;
-#endif
-    }
-
-    if (initial_fill == 1 && stride >= S) {
-      stride = 0;
-      for (int p = 0; p < PENUM; p++) {
-        unsigned s = 0;
-        unsigned r = 0;
-        unsigned c = 0;
-        unsigned ch = 0;
-        const unsigned iter_num = Din_W * K * SIMDgroupNum / 2;
-        for (unsigned i = 0; i < iter_num; i++) {
-#pragma HLS PIPELINE II = 1
-          unsigned read_address = pointer + r * Din_W + c;
-
-          if (read_address >= line_buffer_size)
-            read_address = read_address - line_buffer_size;
-#ifdef SWU_DEBUG
-          cout << "read_address: " << read_address << endl;
-#endif
-
-          ap_uint<SIMDbit * 2> temp_out = (line_buffer[ch][read_address + 1],
-                                           line_buffer[ch][read_address]);
-          out.write(temp_out);
-
-          if (ch == SIMDgroupNum - 1) {
-            ch = 0;
-            if (r == K - 1) {
-              r = 0;
-              c += 2;
-            } else
-              r++;
-          } else
-            ch++;
-        }
-      }
     }
   }
 }
@@ -534,7 +442,7 @@ template <unsigned IN_ROW, unsigned IN_COL, unsigned IN_CH, unsigned IN_BIT,
           unsigned SIMD, unsigned CASCADE, unsigned IN_PE, unsigned PE,
           unsigned L_SHIFT>
 void conv3x3_bn_act_DSPopt(
-    stream<ap_uint<IN_BIT * IN_PE>> &in,
+    stream<ap_uint<IN_BIT * IN_PE * 2>> &in,
     const ap_uint<SIMD * W_BIT> weights[PE][3]
                                        [((IN_CH * 3) / SIMD) * (OUT_CH / PE)],
     const ap_int<INC_BIT> inc[PE][OUT_CH / PE],
