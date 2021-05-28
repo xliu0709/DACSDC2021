@@ -15,47 +15,47 @@
 #define RESIZE_IMAGE_HEIGHT 160
 
 void conv3x3_bn_act_DSPopt_hls_wrapper(
-    stream<ap_uint<CONV_1_IN_BIT * CONV_1_INPE * 2>> &in,
-    // const ap_uint<CONV_1_SIMD_DSP6 * CONV_1_W_BIT>
-    //     weights[CONV_1_PE][3][((CONV_1_IFM_CH * 3) / CONV_1_SIMD_DSP6) *
-    //                           (CONV_1_OFM_CH / CONV_1_PE)],
-    // const ap_int<CONV_1_INC_BIT> inc[CONV_1_PE][CONV_1_OFM_CH / CONV_1_PE],
-    // const ap_int<CONV_1_BIAS_BIT> bias[CONV_1_PE][CONV_1_OFM_CH / CONV_1_PE],
-    stream<ap_uint<CONV_1_OUT_BIT * CONV_1_PE * 2>> &out) {
+    stream<ap_uint<CONV_2_IN_BIT * CONV_2_INPE * 2>> &in,
+    // const ap_uint<CONV_2_SIMD_DSP6 * CONV_2_W_BIT>
+    //     weights[CONV_2_PE][3][((CONV_2_IFM_CH * 3) / CONV_2_SIMD_DSP6) *
+    //                           (CONV_2_OFM_CH / CONV_2_PE)],
+    // const ap_int<CONV_2_INC_BIT> inc[CONV_2_PE][CONV_2_OFM_CH / CONV_2_PE],
+    // const ap_int<CONV_2_BIAS_BIT> bias[CONV_2_PE][CONV_2_OFM_CH / CONV_2_PE],
+    stream<ap_uint<CONV_2_OUT_BIT * CONV_2_PE * 2>> &out) {
 
-#pragma HLS array_partition variable = conv_1_w_dspopt dim = 1 complete
-#pragma HLS array_partition variable = conv_1_w_dspopt dim = 2 complete
-#pragma HLS array_partition variable = conv_1_inc dim = 1 complete
-#pragma HLS array_partition variable = conv_1_bias dim = 1 complete
-  conv3x3_bn_act_DSPopt<CONV_1_IFM_ROW, CONV_1_IFM_COL, CONV_1_IFM_CH,
-                        CONV_1_IN_BIT, CONV_1_OFM_CH, CONV_1_OUT_BIT,
-                        CONV_1_W_BIT, 27, CONV_1_INC_BIT, CONV_1_BIAS_BIT,
-                        CONV_1_SIMD_DSP6, 4, CONV_1_INPE, CONV_1_PE,
-                        CONV_1_L_SHIFT>(in, conv_1_w_dspopt, conv_1_inc,
-                                        conv_1_bias, out);
+#pragma HLS array_partition variable = conv_2_w_dspopt dim = 1 complete
+#pragma HLS array_partition variable = conv_2_w_dspopt dim = 2 complete
+#pragma HLS array_partition variable = conv_2_inc dim = 1 complete
+#pragma HLS array_partition variable = conv_2_bias dim = 1 complete
+  conv3x3_bn_act_DSPopt<CONV_2_IFM_ROW, CONV_2_IFM_COL, CONV_2_IFM_CH,
+                        CONV_2_IN_BIT, CONV_2_OFM_CH, CONV_2_OUT_BIT,
+                        CONV_2_W_BIT, 27, CONV_2_INC_BIT, CONV_2_BIAS_BIT,
+                        CONV_2_SIMD_DSP6, 4, CONV_2_INPE, CONV_2_PE,
+                        CONV_2_L_SHIFT>(in, conv_2_w_dspopt, conv_2_inc,
+                                        conv_2_bias, out);
 }
 
 void conv3x3_bn_act_hls_wrapper(
-    stream<ap_uint<CONV_1_IN_BIT * CONV_1_IFM_CH>> &in,
-    // const ap_uint<CONV_1_SIMD_DSP6 * CONV_1_W_BIT>
-    //     weights[CONV_1_PE][3][((CONV_1_IFM_CH * 3) / CONV_1_SIMD_DSP6) *
-    //                           (CONV_1_OFM_CH / CONV_1_PE)],
-    // const ap_int<CONV_1_INC_BIT> inc[CONV_1_PE][CONV_1_OFM_CH / CONV_1_PE],
-    // const ap_int<CONV_1_BIAS_BIT> bias[CONV_1_PE][CONV_1_OFM_CH / CONV_1_PE],
-    stream<ap_uint<CONV_1_OUT_BIT * CONV_1_OFM_CH>> &out) {
+    stream<ap_uint<CONV_2_IN_BIT * CONV_2_IFM_CH>> &in,
+    // const ap_uint<CONV_2_SIMD_DSP6 * CONV_2_W_BIT>
+    //     weights[CONV_2_PE][3][((CONV_2_IFM_CH * 3) / CONV_2_SIMD_DSP6) *
+    //                           (CONV_2_OFM_CH / CONV_2_PE)],
+    // const ap_int<CONV_2_INC_BIT> inc[CONV_2_PE][CONV_2_OFM_CH / CONV_2_PE],
+    // const ap_int<CONV_2_BIAS_BIT> bias[CONV_2_PE][CONV_2_OFM_CH / CONV_2_PE],
+    stream<ap_uint<CONV_2_OUT_BIT * CONV_2_OFM_CH>> &out) {
 
-#pragma HLS array_partition variable = conv_1_w dim = 1 complete
-#pragma HLS array_partition variable = conv_1_inc dim = 1 complete
-#pragma HLS array_partition variable = conv_1_bias dim = 1 complete
+#pragma HLS array_partition variable = conv_2_w dim = 1 complete
+#pragma HLS array_partition variable = conv_2_inc dim = 1 complete
+#pragma HLS array_partition variable = conv_2_bias dim = 1 complete
 
-  conv3x3_bn_act<CONV_1_IFM_ROW, CONV_1_IFM_COL, CONV_1_IFM_CH, CONV_1_IN_BIT,
+  conv3x3_bn_act<CONV_2_IFM_ROW, CONV_2_IFM_COL, CONV_2_IFM_CH, CONV_2_IN_BIT,
 
-                 CONV_1_OFM_CH, CONV_1_OUT_BIT,
+                 CONV_2_OFM_CH, CONV_2_OUT_BIT,
 
-                 CONV_1_W_BIT, 32, CONV_1_INC_BIT, CONV_1_BIAS_BIT,
+                 CONV_2_W_BIT, 32, CONV_2_INC_BIT, CONV_2_BIAS_BIT,
 
-                 CONV_1_SIMD, CONV_1_PE, CONV_1_L_SHIFT>(
-      in, conv_1_w, conv_1_inc, conv_1_bias, out, 1);
+                 CONV_2_SIMD, CONV_2_PE, CONV_2_L_SHIFT>(
+      in, conv_2_w, conv_2_inc, conv_2_bias, out, 1);
 }
 
 template <unsigned K, unsigned IN_CH, unsigned OUT_CH, unsigned PE,
@@ -89,26 +89,26 @@ void initialziation(
 
 int main(int argc, char **argv) {
 
-  hls::stream<ap_uint<CONV_1_IN_BIT * CONV_1_IFM_CH>> golden_in("golden_in");
-  hls::stream<ap_uint<CONV_1_IN_BIT * CONV_1_INPE * 2>> test_in("test_in");
+  hls::stream<ap_uint<CONV_2_IN_BIT * CONV_2_IFM_CH>> golden_in("golden_in");
+  hls::stream<ap_uint<CONV_2_IN_BIT * CONV_2_INPE * 2>> test_in("test_in");
 
-  ap_uint<4> IFM[CONV_1_IFM_CH][CONV_1_IFM_ROW][CONV_1_IFM_COL];
-  for (int i = 0; i < CONV_1_IFM_CH; i++) {
-    for (int r = 0; r < CONV_1_IFM_ROW; r++)
-      for (int c = 0; c < CONV_1_IFM_COL; c++) {
+  ap_uint<4> IFM[CONV_2_IFM_CH][CONV_2_IFM_ROW][CONV_2_IFM_COL];
+  for (int i = 0; i < CONV_2_IFM_CH; i++) {
+    for (int r = 0; r < CONV_2_IFM_ROW; r++)
+      for (int c = 0; c < CONV_2_IFM_COL; c++) {
         IFM[i][r][c] = random();
       }
   }
 
-  for (int r = 0; r < CONV_1_IFM_ROW; r++) {
-    for (int i = 0; i < CONV_1_IFM_CH; i += CONV_1_INPE) {
-      for (int c = 0; c < CONV_1_IFM_COL; c += 2) {
-        ap_uint<CONV_1_IN_BIT * CONV_1_INPE> data0;
-        ap_uint<CONV_1_IN_BIT * CONV_1_INPE> data1;
-        for (int s = 0; s < CONV_1_INPE; s++) {
-          data0((s + 1) * CONV_1_IN_BIT - 1, s * CONV_1_IN_BIT) =
+  for (int r = 0; r < CONV_2_IFM_ROW; r++) {
+    for (int i = 0; i < CONV_2_IFM_CH; i += CONV_2_INPE) {
+      for (int c = 0; c < CONV_2_IFM_COL; c += 2) {
+        ap_uint<CONV_2_IN_BIT * CONV_2_INPE> data0;
+        ap_uint<CONV_2_IN_BIT * CONV_2_INPE> data1;
+        for (int s = 0; s < CONV_2_INPE; s++) {
+          data0((s + 1) * CONV_2_IN_BIT - 1, s * CONV_2_IN_BIT) =
               IFM[i + s][r][c];
-          data1((s + 1) * CONV_1_IN_BIT - 1, s * CONV_1_IN_BIT) =
+          data1((s + 1) * CONV_2_IN_BIT - 1, s * CONV_2_IN_BIT) =
               IFM[i + s][r][c + 1];
         }
         test_in << (data1, data0);
@@ -116,42 +116,42 @@ int main(int argc, char **argv) {
     }
   }
 
-  for (int r = 0; r < CONV_1_IFM_ROW; r++) {
-    for (int c = 0; c < CONV_1_IFM_COL; c++) {
-      ap_uint<CONV_1_IN_BIT * CONV_1_IFM_CH> data;
-      for (int i = 0; i < CONV_1_IFM_CH; i++) {
-        data((i + 1) * CONV_1_IN_BIT - 1, i * CONV_1_IN_BIT) = IFM[i][r][c];
+  for (int r = 0; r < CONV_2_IFM_ROW; r++) {
+    for (int c = 0; c < CONV_2_IFM_COL; c++) {
+      ap_uint<CONV_2_IN_BIT * CONV_2_IFM_CH> data;
+      for (int i = 0; i < CONV_2_IFM_CH; i++) {
+        data((i + 1) * CONV_2_IN_BIT - 1, i * CONV_2_IN_BIT) = IFM[i][r][c];
       }
       golden_in << data;
     }
   }
 
-  // initialziation<CONV_1_K, CONV_1_IFM_CH, CONV_1_OFM_CH, CONV_1_PE,
-  // CONV_1_SIMD,
-  //                CONV_1_W_BIT>(conv_1_w_dspopt, "center");
+  // initialziation<CONV_2_K, CONV_2_IFM_CH, CONV_2_OFM_CH, CONV_2_PE,
+  // CONV_2_SIMD,
+  //                CONV_2_W_BIT>(conv_2_w_dspopt, "center");
 
-  hls::stream<ap_uint<CONV_1_OUT_BIT * CONV_1_OFM_CH>> golden_out("golden_out");
+  hls::stream<ap_uint<CONV_2_OUT_BIT * CONV_2_OFM_CH>> golden_out("golden_out");
 
-  // conv3x3_bn_act<CONV_1_IFM_ROW, CONV_1_IFM_COL, CONV_1_IFM_CH,
-  // CONV_1_IN_BIT,
+  // conv3x3_bn_act<CONV_2_IFM_ROW, CONV_2_IFM_COL, CONV_2_IFM_CH,
+  // CONV_2_IN_BIT,
 
-  //                CONV_1_OFM_CH, CONV_1_OUT_BIT,
+  //                CONV_2_OFM_CH, CONV_2_OUT_BIT,
 
-  //                CONV_1_W_BIT, 32, CONV_1_INC_BIT, CONV_1_BIAS_BIT,
+  //                CONV_2_W_BIT, 32, CONV_2_INC_BIT, CONV_2_BIAS_BIT,
 
-  //                CONV_1_SIMD, CONV_1_PE, CONV_1_L_SHIFT>(
-  //     golden_in, conv_1_w, conv_1_inc, conv_1_bias, golden_out, 1);
+  //                CONV_2_SIMD, CONV_2_PE, CONV_2_L_SHIFT>(
+  //     golden_in, conv_2_w, conv_2_inc, conv_2_bias, golden_out, 1);
   conv3x3_bn_act_hls_wrapper(golden_in, golden_out);
 
-  // print_mavu_stream_through<CONV_1_OFM_ROW, CONV_1_OFM_COL, CONV_1_OFM_CH,
-  //                           CONV_1_PE, CONV_1_OUT_BIT>(golden_out,
+  // print_mavu_stream_through<CONV_2_OFM_ROW, CONV_2_OFM_COL, CONV_2_OFM_CH,
+  //                           CONV_2_PE, CONV_2_OUT_BIT>(golden_out,
   //                                                      "conv_ultranet_out.txt");
 
-  hls::stream<ap_uint<CONV_1_OUT_BIT * CONV_1_PE * 2>> test_out("test_out");
+  hls::stream<ap_uint<CONV_2_OUT_BIT * CONV_2_PE * 2>> test_out("test_out");
 
   conv3x3_bn_act_DSPopt_hls_wrapper(test_in, test_out);
 
-  print_mavu_DSPopt_stream_through<CONV_1_OFM_ROW, CONV_1_OFM_COL,
-                                   CONV_1_OFM_CH, CONV_1_PE, CONV_1_OUT_BIT>(
+  print_mavu_DSPopt_stream_through<CONV_2_OFM_ROW, CONV_2_OFM_COL,
+                                   CONV_2_OFM_CH, CONV_2_PE, CONV_2_OUT_BIT>(
       test_out, "conv_DSP6_out.txt");
 }

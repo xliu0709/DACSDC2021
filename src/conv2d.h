@@ -3,7 +3,6 @@
 #include <hls_stream.h>
 using namespace hls;
 
-#include "debug.hpp"
 #include "function.h"
 #include "matrix_vector_unit.h"
 #include "sliding_window_unit.h"
@@ -45,9 +44,6 @@ void conv3x3_bn_act(stream<ap_uint<IN_BIT * IN_CH>> &in,
   stream<ap_uint<IN_CH * IN_BIT>> padding_out("samepad_out");
   // stream<ap_uint<IN_CH*IN_BIT> > padding_out_print("samepad_out_print");
   padding<IN_ROW, IN_COL, IN_CH, IN_BIT, 1>(in, padding_out, reps);
-
-  print_FM_stream_through<INTER_ROW, INTER_COL, IN_CH, IN_BIT>(
-      padding_out, "paddint_output.txt");
 
   stream<ap_uint<IN_CH * IN_BIT>> swu_out("swu_out");
   SWU<3, 1, INTER_ROW, INTER_COL, IN_CH, IN_BIT>(padding_out, swu_out, reps);

@@ -113,6 +113,9 @@
 #define CONV_4_W_TILES 2304
 #define CONV_4_A_TILES 32
 #define CONV_4_L_SHIFT 8
+#define CONV_4_INPE 4
+#define CONV_4_SIMD_DSP6 4
+#define CONV_4_PE_DSP6 2
 
 // conv_5
 #define CONV_5_K 3
@@ -134,6 +137,9 @@
 #define CONV_5_W_TILES 2304
 #define CONV_5_A_TILES 32
 #define CONV_5_L_SHIFT 8
+#define CONV_5_INPE 2
+#define CONV_5_SIMD_DSP6 4
+#define CONV_5_PE_DSP6 2
 
 // conv_6
 #define CONV_6_K 3
