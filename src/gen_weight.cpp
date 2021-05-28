@@ -7,34 +7,24 @@
 #include <string>
 using namespace std;
 
-// template <unsigned K, unsigned SIMD, unsigned PE, unsigned IN_CH,
-//           unsigned OUT_CH, unsigned W_BIT>
-// void reorder_weight(
-//     const ap_uint<W_BIT * SIMD> weights[PE][K * K * OUT_CH / PE * IN_CH /
-//                                             SIMD], // weights:
-//                                             PEMUM->K->K->SIMD
-//     ap_uint<W_BIT * SIMD * K> weights3[PE][K * OUT_CH / PE * IN_CH / SIMD]) {
-
-//   const unsigned PENUM = OUT_CH / PE;
-//   const unsigned SIMDNUM = IN_CH / SIMD;
-
-//   for (int peIdx = 0; peIdx < PENUM; peIdx++)
-//     for (int kr = 0; kr < K; kr++)
-//       for (int p = 0; p < PE; p++) {
-//         for (int simdIdx = 0; simdIdx < SIMDNUM; simdIdx++) {
-//           unsigned weights3Addr = peIdx * K * SIMDNUM + kr * SIMDNUM +
-//           simdIdx; ap_uint<K *W_BIT> data3 = 0; for (int kc = 0; kc < K;
-//           kc++) {
-//             for (int i = 0; i < SIMD; i++) {
-//               unsigned weightsAddr = peIdx * K * K * SIMDNUM +
-//                                      kr * K * SIMDNUM + kc * SIMDNUM +
-//                                      simdIdx;
-//               weights3[p][kc][weights3Addr] = weights[p][weightsAddr];
-//             }
-//           }
-//         }
-//       }
-// }
+template <unsigned K, unsigned IN_CH, unsigned OUT_CH, unsigned W_BIT,
+          unsigned PE, unsigned SIMD>
+void weightReorderDSP6(
+    ap_int<W_BIT> weight[K][K][IN_CH][OUT_CH],
+    ap_uint<W_BIT * SIMD> weightDSP6[PE][3][K * IN_CH / SIMD * OUT_CH / PE]) {
+  for (int kr = 0; kr < K; kr++)
+    for (int kc = 0; kc < K; kc++)
+      for (int oc = 0; oc < OUT_CH; oc++) {
+        for (int ic = 0; ic < IN_CH; ic += SIMD) {
+          ap_uint<W_BIT * SIMD> data;
+          for (int s = 0; s < SIMD; s++) {
+            data(W_BIT * (s + 1) - 1, W_BIT * s) = weight[kr][kc][oc][ic + s];
+          }
+          weightDSP6[oc % PE][kc][oc / PE * K * IN_CH / SIMD +
+                                  kr * IN_CH / SIMD + ic / SIMD] = data;
+        }
+      }
+}
 
 template <unsigned K, unsigned SIMD, unsigned PE, unsigned IN_CH,
           unsigned OUT_CH, unsigned W_BIT>

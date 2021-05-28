@@ -5,6 +5,8 @@
 #include <fstream>
 #include <hls_stream.h>
 #include <string>
+#include <iomanip>
+
 
 using namespace std;
 template <unsigned OUT_ROW, unsigned OUT_COL, unsigned OUT_CH, unsigned OUT_BIT>
@@ -97,26 +99,22 @@ void print_mavu_DSPopt_stream_through(hls::stream<ap_uint<BIT * PE * 2>> &out,
   }
   f.close();
 }
-template <unsigned K, unsigned ROW, unsigned COL, unsigned CH, unsigned PE,
-          unsigned BIT>
-void print_mavu_stream_through(hls::stream<ap_uint<BIT * PE>> &out,
+template <unsigned ROW, unsigned COL, unsigned CH, unsigned PE, unsigned BIT>
+void print_mavu_stream_through(hls::stream<ap_uint<BIT * CH>> &out,
                                string filename) {
   ofstream f(filename);
 
   for (int r = 0; r < ROW; r++) {
     for (int c = 0; c < COL; c++) {
       f << "[" << setw(4) << r << "," << setw(4) << c << "]";
-      for (int peIdx = 0; peIdx < CH / PE; peIdx++) {
-        ap_uint<PE *BIT> outdata = out.read();
-        for (int p = 0; p < PE; p++) {
-          unsigned data = outdata.range(p * BIT + BIT - 1, p * BIT);
-          f << setw(8) << hex << data << ",";
-        }
+      ap_uint<PE *CH> outdata = out.read();
+      for (int c = 0; c < CH; c++) {
+        unsigned data = outdata.range(c * BIT + BIT - 1, c * BIT);
+        f << setw(8) << hex << data << ",";
       }
       f << endl;
     }
+    f.close();
   }
-  f.close();
 }
-
 #endif

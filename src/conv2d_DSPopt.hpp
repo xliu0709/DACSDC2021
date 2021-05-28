@@ -44,7 +44,7 @@ void SWU_reordered(stream<ap_uint<Cin * Ibit>> &in,
 
   for (unsigned rep = 0; rep < reps * Din_H; rep++) {
     for (unsigned w = 0; w < Din_W; w++) {
-#pragma HLS PISIMDLINE II = 1
+#pragma HLS PIPELINE II = 1
       temp_in = in.read();
 
       unsigned line_buffer_pointer = pointer + w;
@@ -105,54 +105,9 @@ void SWU_reordered(stream<ap_uint<Cin * Ibit>> &in,
   }
 }
 
-template <unsigned W_BIT, unsigned IN_BIT, unsigned PROD_BIT, unsigned SIMD>
-void simd_update_m(ap_int<PROD_BIT * 2> m_lo[SIMD],
-                   ap_int<PROD_BIT * 2> m_hi[SIMD],
-                   ap_int<PROD_BIT * 2 + W_BIT> wpack[SIMD],
-                   ap_int<PROD_BIT + IN_BIT> ipack[SIMD], bool clear) {
-#pragma HLS inline
-#pragma HLS pipeline II = 1
-#pragma HLS array_partition variable = wpack complete
-#pragma HLS array_partition variable = ipack complete
-#pragma HLS array_partition variable = m_lo complete
-#pragma HLS array_partition variable = m_hi complete
-  for (int i = 0; i < SIMD; i++) {
-    ap_int<PROD_BIT * 2> res = clear ? (ap_int<PROD_BIT * 2>)0 : m_hi[i];
-    ap_int<PROD_BIT * 4> m = wpack[i] * ipack[i] + res;
-    m_lo[i] = m(PROD_BIT * 2 - 1, 0);
-    m_hi[i] = m(PROD_BIT * 4 - 1, PROD_BIT * 2) + m[PROD_BIT * 2 - 1];
-  }
-}
 
-template <unsigned PROD_BIT, unsigned M_BIT, unsigned SIMD>
-void simd_sum(ap_int<PROD_BIT * 2> m_lo[SIMD], ap_int<M_BIT> &sumHi,
-              ap_int<M_BIT> &sumLo, bool o_clear) {
-  ap_int<PROD_BIT> X[SIMD];
-  ap_int<PROD_BIT> Y[SIMD];
-#pragma HLS array_partition variable = m
-#pragma HLS array_partition variable = X
-#pragma HLS array_partition variable = Y
 
-  for (int i = 0; i < SIMD; i++) {
-    X[i] = m_lo[i](PROD_BIT - 1, 0);
-    Y[i] =
-        m_lo[i](PROD_BIT * 2 - 1, PROD_BIT) + (ap_uint<1>)m_lo[i][PROD_BIT - 1];
-  }
-  ap_int<M_BIT> retHi = 0, retLo = 0;
 
-  for (int i = 0; i < SIMD; i++) {
-
-    retHi += Y[i];
-    retLo += X[i];
-  }
-  if (o_clear) {
-    sumHi = retHi;
-    sumLo = retLo;
-  } else {
-    sumHi += retHi;
-    sumLo += retLo;
-  }
-}
 
 template <unsigned IN_BIT, unsigned SIMD, unsigned PROD_BIT>
 void pack_input_data(ap_uint<IN_BIT * SIMD> A, ap_uint<IN_BIT * SIMD> B,
@@ -226,15 +181,18 @@ void simd_MAC(ap_int<PROD_BIT * 2 + W_BIT> wpack[SIMD],
               ap_uint<PROD_BIT + IN_BIT> ipack[SIMD],
               ap_int<PROD_BIT + 5> &partial0, ap_int<PROD_BIT + 5> &partial1,
               ap_int<PROD_BIT + 5> &partial2, ap_int<PROD_BIT + 5> &partial3) {
-
+#pragma HLS ARRAY_PARTITION variable=wpack complete
+#pragma HLS ARRAY_PARTITION variable=ipack complete
   ap_int<PROD_BIT + 5> r0, r1, r2, r3;
   r0 = 0;
   r1 = 0;
   r2 = 0;
   r3 = 0;
   for (int i = 0; i < SIMD; i += CASCADE_NUM) {
+#pragma HLS unroll
     ap_int<PROD_BIT * 4> m = 0;
     for (int cs = 0; cs < CASCADE_NUM; cs++) {
+#pragma HLS unroll
       m += wpack[i + cs] * ipack[i + cs];
     }
 
@@ -335,7 +293,8 @@ void convDSPOpt(
 
 #pragma HLS ARRAY_PARTITION variable = weights complete dim = 1
 #pragma HLS ARRAY_PARTITION variable = weights complete dim = 2
-
+#pragma HLS ARRAY_PARTITION variable = inc complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = bias complete dim = 1
   //   ap_int<PROD_BIT * 2> m_hi[INFOLD][PE][SIMD];
   // #pragma HLS ARRAY_PARTITION variable = m_hi complete dim = 2
   //   ap_int<PROD_BIT * 2> m_lo[PE][SIMD];
@@ -346,11 +305,13 @@ void convDSPOpt(
 #pragma HLS ARRAY_PARTITION variable = wpacks complete dim = 2
 
   ap_uint<IPACK_BIT> ipack[SIMD];
-#pragma HLS ARRAY_PARTITION variable = m_lo complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = ipack complete dim = 1
 
   // ap_uint<12> weightAddr = 0;
   ap_int<M_BIT> firPartialRes0[PE];
+#pragma HLS ARRAY_PARTITION variable = firPartialRes0 complete dim = 1
   ap_int<M_BIT> firPartialRes1[PE];
+#pragma HLS ARRAY_PARTITION variable = firPartialRes1 complete dim = 1
 
   ap_int<M_BIT> outPartialArr0[PE];
 #pragma HLS ARRAY_PARTITION variable = outPartialArr0 complete dim = 1
@@ -361,9 +322,6 @@ void convDSPOpt(
     for (unsigned int peIdx = 0; peIdx < PENUM; peIdx++) {
       for (unsigned int w = 0; w < OUT_W + K - 1; w += 2) {
         for (unsigned int infoldIdx = 0; infoldIdx < INFOLD; infoldIdx++) {
-#pragma HLS DEPENDENCE variable = m_hi inter false
-#pragma HLS DEPENDENCE variable = m_hi intra false
-
 #pragma HLS pipeline
           bool m_clear = (w == 0);
           bool o_clear = (infoldIdx == 0);
@@ -469,7 +427,7 @@ void conv3x3_bn_act_DSPopt(
                                        [((IN_CH * 3) / SIMD) * (OUT_CH / PE)],
     const ap_int<INC_BIT> inc[PE][OUT_CH / PE],
     const ap_int<BIAS_BIT> bias[PE][OUT_CH / PE],
-    stream<ap_uint<OUT_BIT * OUT_CH>> &out, const unsigned reps = 1) {
+    stream<ap_uint<OUT_BIT * PE * 2>> &out, const unsigned reps = 1) {
 #pragma HLS DATAFLOW
 
   const unsigned INTER_ROW = IN_ROW + 2;
@@ -487,18 +445,16 @@ void conv3x3_bn_act_DSPopt(
   stream<ap_uint<SIMD * IN_BIT * 2>> swu_reorder_out("swu_reorder_out");
   SWU_reordered<3, 1, INTER_ROW, INTER_COL, IN_CH, SIMD, IN_BIT, OUT_CH / PE>(
       padding_out, swu_reorder_out, reps);
-
-  cout << "size " << swu_reorder_out.size() << endl;
   // print_SWU_stream_through<3, IN_ROW, IN_COL, IN_CH, SIMD, IN_BIT, OUT_CH /
   // PE>(
   //     swu_reorder_out, "swu_reorder_out.txt");
-  stream<ap_uint<PE * OUT_BIT * 2>> mvau_out("mvau_out");
+  // stream<ap_uint<PE * OUT_BIT * 2>> mvau_out("mvau_out");
   convDSPOpt<3, IN_BIT, IN_CH, OUT_BIT, OUT_COL, OUT_ROW, OUT_CH, W_BIT, 3,
              M_BIT, INC_BIT, BIAS_BIT, SIMD, PE, L_SHIFT>(
-      swu_reorder_out, weights, inc, bias, mvau_out);
+      swu_reorder_out, weights, inc, bias, out);
 
-  print_mavu_DSPopt_stream_through<OUT_ROW, OUT_COL, OUT_CH, PE, OUT_BIT>(
-      mvau_out, "output.txt");
+  // print_mavu_DSPopt_stream_through<OUT_ROW, OUT_COL, OUT_CH, PE, OUT_BIT>(
+  //     mvau_out, "output.txt");
   // SWU<3, 1, INTER_ROW, INTER_COL, IN_CH, IN_BIT>(padding_out, swu_out, reps);
   // // 位宽调整
   // stream<ap_uint<SIMD * IN_BIT>> adj_out("adj_out");

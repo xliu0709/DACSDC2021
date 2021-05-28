@@ -3,15 +3,35 @@
 #include "conv2d_DSPopt.hpp"
 #include "param.h"
 #include "weight3.hpp"
+#include "debug.hpp"
 #include <ap_int.h>
 #include <hls_video.h>
 #include <stdint.h>
-
+#include <hls_stream.h>
 #define IN_IMAGE_WIDTH 640
 #define IN_IMAGE_HEIGHT 360
 
 #define RESIZE_IMAGE_WIDTH 320
 #define RESIZE_IMAGE_HEIGHT 160
+
+void conv3x3_bn_act_DSPopt_hls_wrapper(
+    stream<ap_uint<CONV_2_IN_BIT * CONV_2_IFM_CH>> &in,
+    const ap_uint<CONV_2_SIMD * CONV_2_W_BIT>
+        weights[CONV_2_PE][3][((CONV_2_IFM_CH * 3) / CONV_2_SIMD) *
+                              (CONV_2_OFM_CH / CONV_2_PE)],
+    const ap_int<CONV_2_INC_BIT> inc[CONV_2_PE][CONV_2_OFM_CH / CONV_2_PE],
+    const ap_int<CONV_2_BIAS_BIT> bias[CONV_2_PE][CONV_2_OFM_CH / CONV_2_PE],
+    stream<ap_uint<CONV_2_OUT_BIT * CONV_2_PE * 2>> &out) {
+  conv3x3_bn_act_DSPopt<CONV_2_IFM_ROW, CONV_2_IFM_COL, CONV_2_IFM_CH,
+                        CONV_2_IN_BIT,
+
+                        CONV_2_OFM_CH, CONV_2_OUT_BIT,
+
+                        CONV_2_W_BIT, 32, CONV_2_INC_BIT, CONV_2_BIAS_BIT,
+
+                        CONV_2_SIMD, CONV_2_PE, CONV_2_L_SHIFT>(in, weights,
+                                                                inc, bias, out);
+}
 
 template <unsigned K, unsigned IN_CH, unsigned OUT_CH, unsigned PE,
           unsigned SIMD, unsigned W_BIT>
@@ -26,7 +46,6 @@ void initialziation(
           for (int p = 0; p < PE; p++) {
             ap_uint<SIMD * W_BIT> data;
             for (int s = 0; s < SIMD; s++) {
-
               if (method == "odepth") {
                 data((s + 1) * W_BIT - 1, s * W_BIT) = p;
               } else if (method == "kernel") {
@@ -63,14 +82,14 @@ int main(int argc, char **argv) {
       golden_in << data;
       test_in << data;
     }
-  cout << RAND_MAX << endl;
+
 
   // initialziation<CONV_2_K, CONV_2_IFM_CH, CONV_2_OFM_CH, CONV_2_PE,
   // CONV_2_SIMD,
   //                CONV_2_W_BIT>(conv_2_w_dspopt, "center");
 
   hls::stream<ap_uint<CONV_2_OUT_BIT * CONV_2_OFM_CH>> golden_out("golden_out");
-  cout << "entering conv3x3bn" << endl;
+
   conv3x3_bn_act<CONV_2_IFM_ROW, CONV_2_IFM_COL, CONV_2_IFM_CH, CONV_2_IN_BIT,
 
                  CONV_2_OFM_CH, CONV_2_OUT_BIT,
@@ -80,13 +99,16 @@ int main(int argc, char **argv) {
                  CONV_2_SIMD, CONV_2_PE, CONV_2_L_SHIFT>(
       golden_in, conv_2_w, conv_2_inc, conv_2_bias, golden_out, 1);
 
-  conv3x3_bn_act_DSPopt<CONV_2_IFM_ROW, CONV_2_IFM_COL, CONV_2_IFM_CH,
-                        CONV_2_IN_BIT,
+  print_mavu_stream_through<CONV_2_OFM_ROW, CONV_2_OFM_COL, CONV_2_OFM_CH,
+                            CONV_2_PE, CONV_2_OUT_BIT>(golden_out,
+                                                       "conv_ultranet_out.txt");
 
-                        CONV_2_OFM_CH, CONV_2_OUT_BIT,
+  hls::stream<ap_uint<CONV_2_OUT_BIT * CONV_2_PE * 2>> test_out("test_out");
 
-                        CONV_2_W_BIT, 32, CONV_2_INC_BIT, CONV_2_BIAS_BIT,
+  conv3x3_bn_act_DSPopt_hls_wrapper(test_in, conv_2_w_dspopt, conv_2_inc,
+                                    conv_2_bias, test_out);
 
-                        CONV_2_SIMD, CONV_2_PE, CONV_2_L_SHIFT>(
-      test_in, conv_2_w_dspopt, conv_2_inc, conv_2_bias, golden_out, 1);
+  print_mavu_DSPopt_stream_through<CONV_2_OFM_ROW, CONV_2_OFM_COL,
+                                   CONV_2_OFM_CH, CONV_2_PE, CONV_2_OUT_BIT>(
+      test_out, "conv_DSP6_out.txt");
 }
