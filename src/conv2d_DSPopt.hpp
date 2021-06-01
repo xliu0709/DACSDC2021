@@ -126,6 +126,39 @@ void conv3padding(stream<ap_uint<IN_PE * IN_BIT * 2>> &in,
   }
 }
 
+template <unsigned OUT_ROW, unsigned OUT_COL, unsigned OUT_CH, unsigned M_BIT,
+          unsigned OUT_BIT, unsigned INC_BIT, unsigned BIAS_BIT,
+          unsigned IN_BIT, unsigned W_BIT, unsigned L_SHIFT, unsigned PE>
+void streamBnRelu(stream<ap_uint<PE * M_BIT * 2>> &in,
+                  const ap_int<INC_BIT> inc[PE][OUT_CH / PE],
+                  const ap_int<BIAS_BIT> bias[PE][OUT_CH / PE],
+                  stream<ap_uint<PE * OUT_BIT * 2>> &out,
+                  const unsigned rep = 1) {
+#pragma HLS ARRAY_PARTITION variable = inc complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = bias complete dim = 1
+  for (int r = 0; r < OUT_ROW * rep; r++)
+    for (int peIdx = 0; peIdx < OUT_CH / PE; peIdx++)
+      for (int w = 0; w < OUT_COL; w += 2) {
+
+#pragma HLS pipeline II = 2
+        ap_uint<M_BIT * PE * 2> data;
+        ap_uint<OUT_BIT * PE * 2> data0, data1;
+        ap_int<M_BIT> invec[PE];
+#pragma HLS array_partition variable = invec dim = 1 complete
+        data = in.read();
+        for (int i = 0; i < PE * 2; i++) {
+          invec[i] = data((i + 1) * M_BIT - 1, i * M_BIT);
+        }
+        for (int i = 0; i < PE * 2; i++) {
+          data0((i + 1) * OUT_BIT - 1, i * OUT_BIT) =
+              bn_qurelu_fixed<M_BIT, OUT_BIT, INC_BIT, BIAS_BIT, IN_BIT, W_BIT,
+                              L_SHIFT>(invec[i], inc[i % PE][peIdx],
+                                       bias[i % PE][peIdx]);
+        }
+        out.write(data0);
+      }
+}
+
 template <unsigned IN_BIT, unsigned SIMD, unsigned PROD_BIT>
 void pack_input_data(ap_uint<IN_BIT * SIMD> A, ap_uint<IN_BIT * SIMD> B,
                      ap_uint<PROD_BIT + IN_BIT> ipack[SIMD]) {
@@ -337,7 +370,7 @@ void convDSPOpt(
   ap_int<M_BIT> outPartialArr1[PE];
 #pragma HLS ARRAY_PARTITION variable = outPartialArr1 complete dim = 1
 
-  for (unsigned int h = 0; h < OUT_H; h++) {
+  for (unsigned int h = 0; h < OUT_H * reps; h++) {
     for (unsigned int peIdx = 0; peIdx < PENUM; peIdx++) {
       for (unsigned int w = 0; w < OUT_W + K - 1; w += 2) {
         for (unsigned int infoldIdx = 0; infoldIdx < INFOLD; infoldIdx++) {
@@ -402,13 +435,13 @@ void convDSPOpt(
               // out_buf0(p * M_BIT + M_BIT - 1, p * M_BIT) = outPartialArr0[p];
               // out_buf1(p * M_BIT + M_BIT - 1, p * M_BIT) = outPartialArr1[p];
               oData0((p + 1) * OUT_BIT - 1, p * OUT_BIT) =
-                  bn_qurelu<M_BIT, OUT_BIT, INC_BIT, BIAS_BIT, IN_BIT, W_BIT,
-                            L_SHIFT>(outPartialArr0[p], inc[p][peIdx],
-                                     bias[p][peIdx]);
+                  bn_qurelu_fixed<M_BIT, OUT_BIT, INC_BIT, BIAS_BIT, IN_BIT,
+                                  W_BIT, L_SHIFT>(
+                      outPartialArr0[p], inc[p][peIdx], bias[p][peIdx]);
               oData1((p + 1) * OUT_BIT - 1, p * OUT_BIT) =
-                  bn_qurelu<M_BIT, OUT_BIT, INC_BIT, BIAS_BIT, IN_BIT, W_BIT,
-                            L_SHIFT>(outPartialArr1[p], inc[p][peIdx],
-                                     bias[p][peIdx]);
+                  bn_qurelu_fixed<M_BIT, OUT_BIT, INC_BIT, BIAS_BIT, IN_BIT,
+                                  W_BIT, L_SHIFT>(
+                      outPartialArr1[p], inc[p][peIdx], bias[p][peIdx]);
             }
             out.write((oData1, oData0));
             // weightAddr = 0;
@@ -465,5 +498,4 @@ void conv3x3_bn_act_DSPopt(
              M_BIT, INC_BIT, BIAS_BIT, SIMD, CASCADE, PE, L_SHIFT>(
       padding_out, weights, inc, bias, out);
 }
-
 #endif

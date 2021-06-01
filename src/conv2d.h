@@ -3,11 +3,11 @@
 #include <hls_stream.h>
 using namespace hls;
 
+// #include "debug.hpp"
 #include "function.h"
 #include "matrix_vector_unit.h"
 #include "sliding_window_unit.h"
 #include "stream_tools.h"
-
 /**
  * 卷积计算单元 同时计算bn_层与激活层
  * 在矩阵向量计算后立即计算得到激活输出值
@@ -61,7 +61,8 @@ void conv3x3_bn_act(stream<ap_uint<IN_BIT * IN_CH>> &in,
                          INC_BIT, BIAS_BIT, SIMD, PE, L_SHIFT,
                          OUT_ROW * OUT_COL>(adj_out, weights, inc, bias,
                                             mvau_out, reps);
-
+  //   print_mavu_stream_through<OUT_ROW, OUT_COL, OUT_CH, PE, M_BIT>(
+  //       mvau_out, "conv_l0_gold.txt");
   // cout << "mvau_out size " << mvau_out.size() << endl;
   StreamingDataWidthConverter_Batch<PE * OUT_BIT, OUT_CH * OUT_BIT,
                                     OUT_ROW * OUT_COL * OUT_CH / PE>(mvau_out,
@@ -100,8 +101,8 @@ void conv3x3_bn_act_lut(stream<ap_uint<IN_BIT * IN_CH>> &in,
   const unsigned OUT_COL = IN_COL;
 
   // stream<ap_uint<IN_CH*IN_BIT> > in_adj("in_adj");
-  // StreamingDataWidthConverter_Batch<IN_STREAM_BIT, IN_CH*IN_BIT>(in, in_adj,
-  // reps); pading
+  // StreamingDataWidthConverter_Batch<IN_STREAM_BIT, IN_CH*IN_BIT>(in,
+  // in_adj, reps); pading
   stream<ap_uint<IN_CH * IN_BIT>> padding_out("samepad_out");
   padding<IN_ROW, IN_COL, IN_CH, IN_BIT, 1>(in, padding_out, reps);
 

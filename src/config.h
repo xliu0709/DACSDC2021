@@ -20,7 +20,7 @@
 #define CONV_0_L_SHIFT 8
 #define CONV_0_INPE 3
 #define CONV_0_SIMD_DSP6 3
-#define CONV_0_PE_DSP6 4
+#define CONV_0_PE_DSP6 16
 
 // conv_1
 #define CONV_1_K 3
@@ -42,9 +42,9 @@
 #define CONV_1_W_TILES 36
 #define CONV_1_A_TILES 4
 #define CONV_1_L_SHIFT 8
-#define CONV_1_INPE 4
-#define CONV_1_SIMD_DSP6 8
-#define CONV_1_PE_DSP6 8
+#define CONV_1_INPE 16
+#define CONV_1_SIMD_DSP6 16
+#define CONV_1_PE_DSP6 4
 
 // conv_2
 #define CONV_2_K 3
@@ -66,7 +66,7 @@
 #define CONV_2_W_TILES 144
 #define CONV_2_A_TILES 8
 #define CONV_2_L_SHIFT 8
-#define CONV_2_INPE 8
+#define CONV_2_INPE 4
 #define CONV_2_SIMD_DSP6 8
 #define CONV_2_PE_DSP6 8
 // conv_3
@@ -161,6 +161,9 @@
 #define CONV_6_W_TILES 2304
 #define CONV_6_A_TILES 32
 #define CONV_6_L_SHIFT 8
+#define CONV_6_INPE 2
+#define CONV_6_SIMD_DSP6 4
+#define CONV_6_PE_DSP6 2
 
 // conv_7
 #define CONV_7_K 3
@@ -182,6 +185,9 @@
 #define CONV_7_W_TILES 2304
 #define CONV_7_A_TILES 32
 #define CONV_7_L_SHIFT 8
+#define CONV_7_INPE 2
+#define CONV_7_SIMD_DSP6 4
+#define CONV_7_PE_DSP6 2
 
 // conv_8
 #define CONV_8_K 1
@@ -199,3 +205,6 @@
 #define CONV_8_W_BIT 4
 #define CONV_8_W_TILES 144
 #define CONV_8_L_SHIFT 8
+#define CONV_8_INPE 2
+#define CONV_8_SIMD_DSP2 4
+#define CONV_8_PE_DSP2 2

@@ -13,7 +13,7 @@ genweight:
 	$(CXX) $(CFLAGS) $(CINCLUDES) src/gen_weight.cpp -o genweight 
 
 test: 
-	$(CXX) $(CFLAGS) $(CINCLUDES) src/single_test.cpp -o test 
+	$(CXX) $(CFLAGS) $(CINCLUDES) src/ultranet.cpp -o test 
 
 clean:
 	rm -f test

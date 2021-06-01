@@ -71,6 +71,52 @@ void print_SWU_stream_through(hls::stream<ap_uint<BIT * SIMD * 2>> &out,
   f.close();
 }
 
+template <unsigned ROW, unsigned COL, unsigned CH, unsigned PENUM, unsigned BIT>
+void print_l0_padding_stream_through(hls::stream<ap_uint<BIT * CH * 3>> &out,
+                                     string filename) {
+  ofstream f(filename);
+  for (int r = 0; r < ROW; r++)
+    for (int peIdx = 0; peIdx < PENUM; peIdx++)
+      for (int c = 0; c < COL; c++) {
+        for (int kc = -1; kc < 2; kc++) {
+          f << '[' << setw(3) << r << "," << setw(3) << c + kc << "," << setw(3)
+            << peIdx << "]";
+          ap_uint<BIT *CH * 3> data = out.read();
+          // out.write(data);
+          for (int d = 0; d < BIT * CH * 3 / 8; d++) {
+            ap_uint<8> wdata = data(d * 8 + 7, d * 8);
+            f << setw(4) << wdata;
+          }
+          f << endl;
+        }
+      }
+  f.close();
+}
+
+template <unsigned ROW, unsigned COL, unsigned CH, unsigned PENUM, unsigned BIT,
+          unsigned SIMD>
+void print_conv1x1_through(hls::stream<ap_uint<BIT * SIMD>> &in,
+                           string filename) {
+  ofstream f(filename);
+  for (int r = 0; r < ROW; r++)
+    for (int c = 0; c < COL; c++) {
+      for (int peIdx = 0; peIdx < PENUM; peIdx++)
+        for (int ch = 0; ch < CH; ch += SIMD) {
+          f << '[' << setw(3) << r << "," << setw(3) << c << "," << setw(3)
+            << peIdx << "]";
+          ap_uint<BIT *CH> data = in.read();
+          // out.write(data);
+          for (int d = 0; d < SIMD; d++) {
+            ap_uint<8> wdata = data(d * BIT + BIT - 1, d * BIT);
+            f << setw(4) << wdata;
+          }
+          f << endl;
+        }
+    }
+
+  f.close();
+}
+
 template <unsigned ROW, unsigned COL, unsigned CH, unsigned PE, unsigned BIT>
 void print_mavu_DSPopt_stream_through(hls::stream<ap_uint<BIT * PE * 2>> &out,
                                       string filename) {
@@ -90,8 +136,9 @@ void print_mavu_DSPopt_stream_through(hls::stream<ap_uint<BIT * PE * 2>> &out,
       f << "[" << setw(4) << r << "," << setw(4) << c << "]";
       for (int peIdx = 0; peIdx < CH / PE; peIdx++) {
         for (int p = 0; p < PE; p++) {
-          unsigned data = buffer[peIdx][c].range(p * BIT + BIT - 1, p * BIT);
-          f << setw(2) << hex << data << ",";
+          ap_uint<BIT> data =
+              buffer[peIdx][c].range(p * BIT + BIT - 1, p * BIT);
+          f << data.to_string(16) << ",";
         }
       }
       f << endl;
@@ -99,6 +146,7 @@ void print_mavu_DSPopt_stream_through(hls::stream<ap_uint<BIT * PE * 2>> &out,
   }
   f.close();
 }
+
 template <unsigned ROW, unsigned COL, unsigned CH, unsigned PE, unsigned BIT>
 void print_mavu_stream_through(hls::stream<ap_uint<BIT * CH>> &out,
                                string filename) {
@@ -107,11 +155,34 @@ void print_mavu_stream_through(hls::stream<ap_uint<BIT * CH>> &out,
   for (int r = 0; r < ROW; r++) {
     for (int c = 0; c < COL; c++) {
       f << "[" << setw(4) << r << "," << setw(4) << c << "]";
-      ap_uint<PE *CH> outdata = out.read();
+      ap_uint<BIT *CH> outdata = out.read();
       out << outdata;
       for (int ch = 0; ch < CH; ch++) {
-        unsigned data = outdata.range(ch * BIT + BIT - 1, ch * BIT);
-        f << setw(2) << hex << data << ",";
+        ap_uint<BIT> data = outdata.range(ch * BIT + BIT - 1, ch * BIT);
+        f << data.to_string(16) << ",";
+      }
+      f << endl;
+    }
+  }
+  f.close();
+}
+
+template <unsigned ROW, unsigned COL, unsigned CH, unsigned PE, unsigned BIT>
+void print_pe_stream_through(hls::stream<ap_uint<BIT * PE>> &out,
+                             string filename) {
+  ofstream f(filename);
+
+  for (int r = 0; r < ROW; r++) {
+    for (int c = 0; c < COL; c++) {
+      f << "[" << setw(4) << r << "," << setw(4) << c << "]";
+      for (int pp = 0; pp < CH; pp += PE) {
+        ap_uint<BIT *PE> outdata = out.read();
+        // out << outdata;
+
+        for (int p = 0; p < PE; p++) {
+          ap_int<BIT> data = outdata.range(p * BIT + BIT - 1, p * BIT);
+          f << data.to_string(10) << ",";
+        }
       }
       f << endl;
     }
