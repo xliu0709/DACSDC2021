@@ -491,11 +491,11 @@ void conv3x3_bn_act_DSPopt(
 
   stream<ap_uint<SIMD * IN_BIT * 2>> padding_out("padding_out");
   conv3padding<3, IN_ROW, IN_COL, IN_CH, IN_BIT, IN_PE, SIMD, OUT_CH / PE>(
-      in, padding_out);
+      in, padding_out, reps);
 
   stream<ap_uint<PE * OUT_BIT * 2>> mvau_out("mvau_out");
   convDSPOpt<3, IN_BIT, IN_CH, OUT_BIT, OUT_COL, OUT_ROW, OUT_CH, W_BIT, 3,
              M_BIT, INC_BIT, BIAS_BIT, SIMD, CASCADE, PE, L_SHIFT>(
-      padding_out, weights, inc, bias, out);
+      padding_out, weights, inc, bias, out, reps);
 }
 #endif

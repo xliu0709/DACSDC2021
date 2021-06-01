@@ -10,11 +10,15 @@ CFLAGS 		+= -g
 # CFLAGS		+= -O3
 
 genweight:
-	$(CXX) $(CFLAGS) $(CINCLUDES) src/gen_weight.cpp -o genweight 
+	$(CXX) $(CFLAGS) $(CINCLUDES) src/gen_weight.cpp -o genweight.out 
+
+
+ultranet: 
+	$(CXX) $(CFLAGS) $(CINCLUDES) src/ultranet.cpp -o ultranet.out 
 
 test: 
-	$(CXX) $(CFLAGS) $(CINCLUDES) src/ultranet.cpp -o test 
+	$(CXX) $(CFLAGS) $(CINCLUDES) src/single_test_conv1x1.cpp -o test.out 
 
 clean:
-	rm -f test
-	rm -f genweight
+	rm -f *.out
+	rm -f *.txt

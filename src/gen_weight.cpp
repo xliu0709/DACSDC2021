@@ -60,7 +60,7 @@ void weightReorderDSP6(
           ap_uint<W_BIT * SIMD> data;
           if (first) {
             for (int s = 0; s < SIMD; s++) {
-              data(W_BIT * (s + 1) - 1, W_BIT * s) = weight[kr][kc][ic + s][oc];
+              data(W_BIT * (s + 1) - 1, W_BIT * s) = weight[kr][kc][oc][ic + s];
             }
             weightDSP6[oc % PE][kr][oc / PE * K * IN_CH / SIMD +
                                     kc * IN_CH / SIMD + ic / SIMD] = data;

@@ -1,4 +1,4 @@
-#define DEBUG
+// #define DEBUG
 
 #ifdef DEBUG
 #include <fstream>
@@ -147,8 +147,8 @@ void do_compute(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
 #ifdef DEBUG
   cout << "conv_0_out size " << conv_0_out.size() << endl;
   print_mavu_stream_through<CONV_0_OFM_ROW, CONV_0_OFM_COL, CONV_0_OFM_CH,
-                            CONV_0_PE_DSP6, CONV_0_OUT_BIT>(conv_0_out,
-                                                            "conv_0_out.txt");
+                            CONV_0_PE_DSP6, CONV_0_OUT_BIT>(
+      conv_0_out, "conv_0_out.txt", reps);
   // hls::stream<ap_uint<4>> res("res");
   // StreamingDataWidthConverter_Batch<CONV_0_OUT_BIT * CONV_0_OFM_CH, 4,
   // 1>(conv_0_out, res, 1); for (int i=0; i < 16; i ++) {
@@ -164,8 +164,8 @@ void do_compute(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
 #ifdef DEBUG
   cout << "pool_0_out size " << pool_0_out.size() << endl;
   print_mavu_stream_through<CONV_1_IFM_ROW, CONV_1_IFM_COL, CONV_1_IFM_CH,
-                            CONV_0_PE_DSP6, CONV_0_OUT_BIT>(pool_0_out,
-                                                            "pool_0_out.txt");
+                            CONV_0_PE_DSP6, CONV_0_OUT_BIT>(
+      pool_0_out, "pool_0_out.txt", reps);
 #endif
 
   hls::stream<ap_uint<CONV_1_OUT_BIT * CONV_1_OFM_CH>> conv_1_out("conv_1_out");
@@ -182,7 +182,7 @@ void do_compute(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
   cout << "conv_1_out size " << conv_1_out.size() << endl;
   print_mavu_stream_through<CONV_1_OFM_ROW, CONV_1_OFM_COL, CONV_1_OFM_CH,
                             CONV_1_PE, CONV_1_OUT_BIT>(conv_1_out,
-                                                       "conv_1_out.txt");
+                                                       "conv_1_out.txt", reps);
 
 #endif
   hls::stream<ap_uint<CONV_1_OUT_BIT * CONV_1_OFM_CH>> pool_1_out("pool_out");
@@ -193,7 +193,7 @@ void do_compute(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
   cout << "pool_1_out size " << pool_1_out.size() << endl;
   print_mavu_stream_through<CONV_2_IFM_ROW, CONV_2_IFM_COL, CONV_2_IFM_CH,
                             CONV_1_PE, CONV_1_OUT_BIT>(pool_1_out,
-                                                       "pool_1_out.txt");
+                                                       "pool_1_out.txt", reps);
 
 #endif
 
@@ -211,7 +211,7 @@ void do_compute(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
   cout << "conv_2_out size " << conv_2_out.size() << endl;
   print_mavu_stream_through<CONV_2_OFM_ROW, CONV_2_OFM_COL, CONV_2_OFM_CH,
                             CONV_2_PE, CONV_2_OUT_BIT>(conv_2_out,
-                                                       "conv_2_out.txt");
+                                                       "conv_2_out.txt", reps);
 #endif
   hls::stream<ap_uint<CONV_2_OUT_BIT * CONV_2_OFM_CH>> pool_2_out("pool2_out");
 #pragma HLS STREAM variable = pool_2_out depth = 128 dim = 1
@@ -221,7 +221,7 @@ void do_compute(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
   cout << "pool_2_out size " << pool_2_out.size() << endl;
   print_mavu_stream_through<CONV_3_IFM_ROW, CONV_3_IFM_COL, CONV_3_IFM_CH,
                             CONV_2_PE, CONV_2_OUT_BIT>(pool_2_out,
-                                                       "pool_2_out.txt");
+                                                       "pool_2_out.txt", reps);
 #endif
 
   hls::stream<ap_uint<CONV_3_OUT_BIT * CONV_3_OFM_CH>> conv_3_out("conv_3_out");
@@ -238,7 +238,7 @@ void do_compute(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
   cout << "conv_3_out size " << conv_3_out.size() << endl;
   print_mavu_stream_through<CONV_3_OFM_ROW, CONV_3_OFM_COL, CONV_3_OFM_CH,
                             CONV_3_PE, CONV_3_OUT_BIT>(conv_3_out,
-                                                       "conv_3_out.txt");
+                                                       "conv_3_out.txt", reps);
 
 #endif
   hls::stream<ap_uint<CONV_3_OUT_BIT * CONV_3_OFM_CH>> pool_3_out("pool_3_out");
@@ -250,7 +250,7 @@ void do_compute(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
 
   print_mavu_stream_through<CONV_4_IFM_ROW, CONV_4_IFM_COL, CONV_4_IFM_CH,
                             CONV_3_PE, CONV_3_OUT_BIT>(pool_3_out,
-                                                       "pool_3_out.txt");
+                                                       "pool_3_out.txt", reps);
 
 #endif
 
@@ -268,7 +268,7 @@ void do_compute(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
   cout << "conv_4_out size " << conv_4_out.size() << endl;
   print_mavu_stream_through<CONV_4_OFM_ROW, CONV_4_OFM_COL, CONV_4_OFM_CH,
                             CONV_4_PE, CONV_4_OUT_BIT>(conv_4_out,
-                                                       "conv_4_out.txt");
+                                                       "conv_4_out.txt", reps);
 #endif
 
   hls::stream<ap_uint<CONV_5_OUT_BIT * CONV_5_OFM_CH>> conv_5_out("conv_5_out");
@@ -285,7 +285,7 @@ void do_compute(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
   cout << "conv_5_out size " << conv_5_out.size() << endl;
   print_mavu_stream_through<CONV_5_OFM_ROW, CONV_5_OFM_COL, CONV_5_OFM_CH,
                             CONV_5_PE, CONV_5_OUT_BIT>(conv_5_out,
-                                                       "conv_5_out.txt");
+                                                       "conv_5_out.txt", reps);
 #endif
 
   hls::stream<ap_uint<CONV_6_OUT_BIT * CONV_6_OFM_CH>> conv_6_out("conv_6_out");
@@ -302,7 +302,7 @@ void do_compute(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
   cout << "conv_6_out size " << conv_6_out.size() << endl;
   print_mavu_stream_through<CONV_6_OFM_ROW, CONV_6_OFM_COL, CONV_6_OFM_CH,
                             CONV_6_PE, CONV_6_OUT_BIT>(conv_6_out,
-                                                       "conv_6_out.txt");
+                                                       "conv_6_out.txt", reps);
 #endif
 
   hls::stream<ap_uint<CONV_7_OUT_BIT * CONV_7_OFM_CH>> conv_7_out("conv_7_out");
@@ -319,7 +319,7 @@ void do_compute(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
   cout << "conv_7_out size " << conv_7_out.size() << endl;
   print_mavu_stream_through<CONV_7_OFM_ROW, CONV_7_OFM_COL, CONV_7_OFM_CH,
                             CONV_7_PE, CONV_7_OUT_BIT>(conv_7_out,
-                                                       "conv_7_out.txt");
+                                                       "conv_7_out.txt", reps);
   // hls::stream<ap_uint<4>> res("res");
   // StreamingDataWidthConverter_Batch<CONV_7_OUT_BIT * CONV_7_OFM_CH, 4,
   // 1>(conv_7_out, res, 1); for (int i=0; i < 64; i ++) {
@@ -449,7 +449,7 @@ void do_compute2(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
   print_mavu_DSPopt_stream_through<CONV_0_OFM_ROW, CONV_0_OFM_COL,
                                    CONV_0_OFM_CH, CONV_0_PE_DSP6,
                                    CONV_0_OUT_BIT>(conv_0_out,
-                                                   "conv_0_DSP6_out.txt");
+                                                   "conv_0_DSP6_out.txt", reps);
 #endif
 
   //***********POOL_0*************
@@ -457,12 +457,12 @@ void do_compute2(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
       "pool_0_out");
 #pragma HLS STREAM variable = pool_0_out depth = 128 dim = 1
   max_pool2x2<CONV_0_OFM_ROW, CONV_0_OFM_COL, CONV_0_OFM_CH, CONV_0_OUT_BIT,
-              CONV_0_PE_DSP6>(conv_0_out, pool_0_out);
+              CONV_0_PE_DSP6>(conv_0_out, pool_0_out, reps);
 #ifdef DEBUG
   cout << "pool_0_out size " << pool_0_out.size() << endl;
   print_mavu_DSPopt_stream_through<CONV_1_IFM_ROW, CONV_1_IFM_COL,
                                    CONV_1_IFM_CH, CONV_1_INPE, CONV_0_OUT_BIT>(
-      pool_0_out, "pool_0_DSP6_out.txt");
+      pool_0_out, "pool_0_DSP6_out.txt", reps);
 #endif
 
   //***********CONV_1*************
@@ -481,7 +481,7 @@ void do_compute2(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
   print_mavu_DSPopt_stream_through<CONV_1_OFM_ROW, CONV_1_OFM_COL,
                                    CONV_1_OFM_CH, CONV_1_PE_DSP6,
                                    CONV_1_OUT_BIT>(conv_1_out,
-                                                   "conv_1_DSP6_out.txt");
+                                                   "conv_1_DSP6_out.txt", reps);
 #endif
 
   //***********POOL_1*************
@@ -489,12 +489,12 @@ void do_compute2(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
       "pool_1_out");
 #pragma HLS STREAM variable = pool_1_out depth = 128 dim = 1
   max_pool2x2<CONV_1_OFM_ROW, CONV_1_OFM_COL, CONV_1_OFM_CH, CONV_1_OUT_BIT,
-              CONV_1_PE_DSP6>(conv_1_out, pool_1_out);
+              CONV_1_PE_DSP6>(conv_1_out, pool_1_out, reps);
 #ifdef DEBUG
   cout << "pool_1_out size " << pool_1_out.size() << endl;
   print_mavu_DSPopt_stream_through<CONV_2_IFM_ROW, CONV_2_IFM_COL,
                                    CONV_2_IFM_CH, CONV_2_INPE, CONV_1_OUT_BIT>(
-      pool_1_out, "pool_1_DSP6_out.txt");
+      pool_1_out, "pool_1_DSP6_out.txt", reps);
 #endif
 
   //***********CONV_2*************
@@ -513,7 +513,7 @@ void do_compute2(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
   print_mavu_DSPopt_stream_through<CONV_2_OFM_ROW, CONV_2_OFM_COL,
                                    CONV_2_OFM_CH, CONV_2_PE_DSP6,
                                    CONV_2_OUT_BIT>(conv_2_out,
-                                                   "conv_2_DSP6_out.txt");
+                                                   "conv_2_DSP6_out.txt", reps);
 #endif
 
   //***********POOL_2*************
@@ -521,12 +521,12 @@ void do_compute2(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
       "pool_2_out");
 #pragma HLS STREAM variable = pool_2_out depth = 128 dim = 1
   max_pool2x2<CONV_2_OFM_ROW, CONV_2_OFM_COL, CONV_2_OFM_CH, CONV_2_OUT_BIT,
-              CONV_2_PE_DSP6>(conv_2_out, pool_2_out);
+              CONV_2_PE_DSP6>(conv_2_out, pool_2_out, reps);
 #ifdef DEBUG
   cout << "pool_2_out size " << pool_2_out.size() << endl;
   print_mavu_DSPopt_stream_through<CONV_3_IFM_ROW, CONV_3_IFM_COL,
                                    CONV_3_IFM_CH, CONV_3_INPE, CONV_2_OUT_BIT>(
-      pool_2_out, "pool_2_DSP6_out.txt");
+      pool_2_out, "pool_2_DSP6_out.txt", reps);
 #endif
 
   //***********CONV_3*************
@@ -545,7 +545,7 @@ void do_compute2(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
   print_mavu_DSPopt_stream_through<CONV_3_OFM_ROW, CONV_3_OFM_COL,
                                    CONV_3_OFM_CH, CONV_3_PE_DSP6,
                                    CONV_3_OUT_BIT>(conv_3_out,
-                                                   "conv_3_DSP6_out.txt");
+                                                   "conv_3_DSP6_out.txt", reps);
 #endif
 
   //***********POOL_3*************
@@ -553,12 +553,12 @@ void do_compute2(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
       "pool_3_out");
 #pragma HLS STREAM variable = pool_3_out depth = 128 dim = 1
   max_pool2x2<CONV_3_OFM_ROW, CONV_3_OFM_COL, CONV_3_OFM_CH, CONV_3_OUT_BIT,
-              CONV_3_PE_DSP6>(conv_3_out, pool_3_out);
+              CONV_3_PE_DSP6>(conv_3_out, pool_3_out, reps);
 #ifdef DEBUG
   cout << "pool_3_out size " << pool_3_out.size() << endl;
   print_mavu_DSPopt_stream_through<CONV_4_IFM_ROW, CONV_4_IFM_COL,
                                    CONV_4_IFM_CH, CONV_4_INPE, CONV_3_OUT_BIT>(
-      pool_3_out, "pool_3_DSP6_out.txt");
+      pool_3_out, "pool_3_DSP6_out.txt", reps);
 #endif
 
   //***********CONV_4*************
@@ -577,7 +577,7 @@ void do_compute2(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
   print_mavu_DSPopt_stream_through<CONV_4_OFM_ROW, CONV_4_OFM_COL,
                                    CONV_4_OFM_CH, CONV_4_PE_DSP6,
                                    CONV_4_OUT_BIT>(conv_4_out,
-                                                   "conv_4_DSP6_out.txt");
+                                                   "conv_4_DSP6_out.txt", reps);
 #endif
 
   //***********CONV_5*************
@@ -596,7 +596,7 @@ void do_compute2(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
   print_mavu_DSPopt_stream_through<CONV_5_OFM_ROW, CONV_5_OFM_COL,
                                    CONV_5_OFM_CH, CONV_5_PE_DSP6,
                                    CONV_5_OUT_BIT>(conv_5_out,
-                                                   "conv_5_DSP6_out.txt");
+                                                   "conv_5_DSP6_out.txt", reps);
 #endif
 
   //***********CONV_6*************
@@ -615,7 +615,7 @@ void do_compute2(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
   print_mavu_DSPopt_stream_through<CONV_6_OFM_ROW, CONV_6_OFM_COL,
                                    CONV_6_OFM_CH, CONV_6_PE_DSP6,
                                    CONV_6_OUT_BIT>(conv_6_out,
-                                                   "conv_6_DSP6_out.txt");
+                                                   "conv_6_DSP6_out.txt", reps);
 #endif
 
   //***********CONV_7*************
@@ -634,7 +634,7 @@ void do_compute2(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
   print_mavu_DSPopt_stream_through<CONV_7_OFM_ROW, CONV_7_OFM_COL,
                                    CONV_7_OFM_CH, CONV_7_PE_DSP6,
                                    CONV_7_OUT_BIT>(conv_7_out,
-                                                   "conv_7_DSP6_out.txt");
+                                                   "conv_7_DSP6_out.txt", reps);
 #endif
   hls::stream<ap_uint<32 * CONV_8_PE_DSP2>> conv_8_out("conv_7_out");
   conv1x1_DSPopt<CONV_8_IFM_ROW, CONV_8_IFM_COL, CONV_8_IFM_CH, CONV_8_IN_BIT,
@@ -643,28 +643,6 @@ void do_compute2(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
                                               conv_8_out, reps);
   AddLast<CONV_8_OFM_ROW * CONV_8_OFM_COL * CONV_8_OFM_CH / 2>(conv_8_out, out,
                                                                reps);
-}
-
-#ifdef DEBUG
-
-void load_data(const char *path, char *ptr, unsigned int size) {
-  std::ifstream f(path, std::ios::in | std::ios::binary);
-  if (!f) {
-    std::cout << "no such file,please check the file name!/n";
-    exit(0);
-  }
-  f.read(ptr, size);
-  f.close();
-}
-
-void write_data(const char *path, char *ptr, unsigned int size) {
-  std::ofstream f(path, std::ios::out | std::ios::binary);
-  if (!f) {
-    std::cout << "write no such file,please check the file name!/n";
-    exit(0);
-  }
-  f.write(ptr, size);
-  f.close();
 }
 
 void fastNet(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
@@ -676,6 +654,7 @@ void fastNet(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
 #pragma HLS INTERFACE s_axilite port = return bundle = control
 
 #pragma HLS ARRAY_PARTITION variable = conv_0_w complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_0_w complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = conv_0_inc complete dim = 1
 #pragma HLS ARRAY_PARTITION variable = conv_0_bias complete dim = 1
 
@@ -717,6 +696,28 @@ void fastNet(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
 #pragma HLS ARRAY_PARTITION variable = conv_8_w complete dim = 1
 
   do_compute2(in, out, reps);
+}
+
+#ifdef DEBUG
+
+void load_data(const char *path, char *ptr, unsigned int size) {
+  std::ifstream f(path, std::ios::in | std::ios::binary);
+  if (!f) {
+    std::cout << "no such file,please check the file name!/n";
+    exit(0);
+  }
+  f.read(ptr, size);
+  f.close();
+}
+
+void write_data(const char *path, char *ptr, unsigned int size) {
+  std::ofstream f(path, std::ios::out | std::ios::binary);
+  if (!f) {
+    std::cout << "write no such file,please check the file name!/n";
+    exit(0);
+  }
+  f.write(ptr, size);
+  f.close();
 }
 
 int main(int argc, char const *argv[]) {

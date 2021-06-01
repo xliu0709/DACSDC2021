@@ -124,8 +124,6 @@ template <unsigned OUT_ROW, unsigned OUT_COL, unsigned OUT_CH, unsigned PE,
           unsigned OUT_BIT>
 void convDSPOpt_l0(stream<ap_uint<IN_BIT * 9>> &in,
                    const ap_uint<3 * W_BIT> weights[PE][3][3 * (OUT_CH / PE)],
-                   //  const ap_int<INC_BIT> inc[PE][OUT_CH / PE],
-                   //  const ap_int<BIAS_BIT> bias[PE][OUT_CH / PE],
                    stream<ap_uint<M_BIT * PE>> &out, const unsigned reps = 1) {
 #pragma HLS ARRAY_PARTITION variable = weights complete dim = 1
 #pragma HLS ARRAY_PARTITION variable = weights complete dim = 2
@@ -200,9 +198,9 @@ void streamBnRelu_l0(stream<ap_uint<PE * M_BIT>> &in,
                      const unsigned rep = 1) {
 #pragma HLS ARRAY_PARTITION variable = inc complete dim = 1
 #pragma HLS ARRAY_PARTITION variable = bias complete dim = 1
-  for (int r = 0; r < OUT_ROW * rep; r++)
-    for (int peIdx = 0; peIdx < OUT_CH / PE; peIdx++)
-      for (int w = 0; w < OUT_COL; w += 2) {
+  for (unsigned r = 0; r < OUT_ROW * rep; r++)
+    for (unsigned peIdx = 0; peIdx < OUT_CH / PE; peIdx++)
+      for (unsigned w = 0; w < OUT_COL; w += 2) {
 
 #pragma HLS pipeline II = 4
         ap_uint<M_BIT * PE> data;
@@ -254,15 +252,16 @@ void conv3x3_l0_bn_act_DSPopt(
   const unsigned OUT_COL = IN_COL;
 
   stream<ap_uint<SIMD * IN_BIT * 3>> padding_out("pad_l0_out");
-  conv3padding_l0<3, IN_ROW, IN_COL, IN_CH, IN_BIT, OUT_CH / PE>(in,
-                                                                 padding_out);
+  conv3padding_l0<3, IN_ROW, IN_COL, IN_CH, IN_BIT, OUT_CH / PE>(
+      in, padding_out, reps);
 
   stream<ap_uint<M_BIT * PE>> conv_l0_out("conv_l0_out");
-  convDSPOpt_l0<OUT_ROW, OUT_COL, OUT_CH, PE, IN_BIT, W_BIT, M_BIT,
-                // BIAS_BIT, INC_BIT,
-                OUT_BIT>(padding_out, weights, conv_l0_out);
+  convDSPOpt_l0<OUT_ROW, OUT_COL, OUT_CH, PE, IN_BIT, W_BIT, M_BIT, OUT_BIT>(
+      padding_out, weights, conv_l0_out, reps);
+
   streamBnRelu_l0<OUT_ROW, OUT_COL, OUT_CH, M_BIT, OUT_BIT, INC_BIT, BIAS_BIT,
-                  L_SHIFT, IN_BIT, W_BIT, PE>(conv_l0_out, inc, bias, out);
+                  L_SHIFT, IN_BIT, W_BIT, PE>(conv_l0_out, inc, bias, out,
+                                              reps);
 }
 
 #endif

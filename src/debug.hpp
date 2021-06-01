@@ -119,11 +119,11 @@ void print_conv1x1_through(hls::stream<ap_uint<BIT * SIMD>> &in,
 
 template <unsigned ROW, unsigned COL, unsigned CH, unsigned PE, unsigned BIT>
 void print_mavu_DSPopt_stream_through(hls::stream<ap_uint<BIT * PE * 2>> &out,
-                                      string filename) {
+                                      string filename, unsigned reps) {
   ofstream f(filename);
   ap_uint<BIT * PE> buffer[CH / PE][COL];
 
-  for (int r = 0; r < ROW; r++) {
+  for (int r = 0; r < ROW * reps; r++) {
     for (int peIdx = 0; peIdx < CH / PE; peIdx++) {
       for (int c = 0; c < COL; c += 2) {
         ap_uint<BIT *PE * 2> data = out.read();
@@ -149,10 +149,10 @@ void print_mavu_DSPopt_stream_through(hls::stream<ap_uint<BIT * PE * 2>> &out,
 
 template <unsigned ROW, unsigned COL, unsigned CH, unsigned PE, unsigned BIT>
 void print_mavu_stream_through(hls::stream<ap_uint<BIT * CH>> &out,
-                               string filename) {
+                               string filename, unsigned reps) {
   ofstream f(filename);
 
-  for (int r = 0; r < ROW; r++) {
+  for (int r = 0; r < ROW * reps; r++) {
     for (int c = 0; c < COL; c++) {
       f << "[" << setw(4) << r << "," << setw(4) << c << "]";
       ap_uint<BIT *CH> outdata = out.read();
@@ -169,15 +169,15 @@ void print_mavu_stream_through(hls::stream<ap_uint<BIT * CH>> &out,
 
 template <unsigned ROW, unsigned COL, unsigned CH, unsigned PE, unsigned BIT>
 void print_pe_stream_through(hls::stream<ap_uint<BIT * PE>> &out,
-                             string filename) {
+                             string filename, unsigned reps) {
   ofstream f(filename);
 
-  for (int r = 0; r < ROW; r++) {
+  for (int r = 0; r < ROW * reps; r++) {
     for (int c = 0; c < COL; c++) {
       f << "[" << setw(4) << r << "," << setw(4) << c << "]";
       for (int pp = 0; pp < CH; pp += PE) {
         ap_uint<BIT *PE> outdata = out.read();
-        // out << outdata;
+        out << outdata;
 
         for (int p = 0; p < PE; p++) {
           ap_int<BIT> data = outdata.range(p * BIT + BIT - 1, p * BIT);
