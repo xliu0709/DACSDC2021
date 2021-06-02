@@ -359,8 +359,8 @@ void do_compute(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
       AddLast<CONV_8_OFM_ROW * CONV_8_OFM_COL * CONV_8_OFM_CH / 2>(conv_8_out,
                                                                    out, reps);
 }
-void ultra_net(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
-               const unsigned int reps) {
+void ultra_net2(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
+                const unsigned int reps) {
 
 #pragma HLS INTERFACE axis register both port = out
 #pragma HLS INTERFACE axis register both port = in
@@ -650,8 +650,8 @@ void do_compute2(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
                                                                reps);
 }
 
-void ultra_net2(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
-                const unsigned int reps) {
+void ultra_net(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
+               const unsigned int reps) {
 
 #pragma HLS INTERFACE axis register both port = out
 #pragma HLS INTERFACE axis register both port = in
