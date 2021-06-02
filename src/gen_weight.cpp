@@ -285,6 +285,6 @@ int main() {
                        CONV_7_PE_DSP6>(conv_7_inc, of, "conv_7_inc_dspopt");
   transformConv1x1Print<CONV_8_IFM_CH, CONV_8_OFM_CH, CONV_8_SIMD, CONV_8_PE,
                         CONV_8_SIMD_DSP2, CONV_8_PE_DSP2, CONV_8_W_BIT>(
-      conv_8_w, "conv_8_dspopt", of);
+      conv_8_w, "conv_8_w_dspopt", of);
   of.close();
 }
