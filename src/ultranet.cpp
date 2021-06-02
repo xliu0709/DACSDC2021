@@ -119,7 +119,8 @@ void do_compute(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
   cout << "in_stream2 size " << in_stream2.size() << endl;
   // hls::stream<ap_uint<8>> res("res");
   // StreamingDataWidthConverter_Batch<CONV_0_IN_BIT * CONV_0_IFM_CH, 8,
-  // 320*3>(in_stream, res, 1); int data[3][320][3]; for (int n=0; n < 3; n ++)
+  // 320*3>(in_stream, res, 1); int data[3][320][3]; for (int n=0; n < 3; n
+  ++)
   //     for (int i=0; i < 320; i ++) {
   //         for (int j=0; j < 3; j ++)
   //             data[n][i][j] = res.read();
@@ -134,7 +135,8 @@ void do_compute(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
   // 输入数据没问�??
 #endif
 
-  hls::stream<ap_uint<CONV_0_OUT_BIT * CONV_0_OFM_CH>> conv_0_out("conv_0_out");
+  hls::stream<ap_uint<CONV_0_OUT_BIT * CONV_0_OFM_CH>>
+  conv_0_out("conv_0_out");
 #pragma HLS STREAM variable = conv_0_out depth = 128 dim = 1
   conv3x3_bn_act<CONV_0_IFM_ROW, CONV_0_IFM_COL, CONV_0_IFM_CH, CONV_0_IN_BIT,
 
@@ -345,7 +347,8 @@ void do_compute(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
 #ifdef DEBUG
   cout << "conv_8_out size " << conv_8_out.size() << endl;
   // hls::stream<ap_uint<32>> res("res");
-  // StreamingDataWidthConverter_Batch<32 * CONV_8_PE, 32, 18>(conv_8_out, res,
+  // StreamingDataWidthConverter_Batch<32 * CONV_8_PE, 32, 18>(conv_8_out,
+  res,
   // 1); for (int i=0; i < 36; i ++) {
   //     ap_int<32> a =  res.read();
   //     cout << a << " ";
@@ -353,8 +356,8 @@ void do_compute(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
   // cout << endl;
   // return;
 #endif
-  AddLast<CONV_8_OFM_ROW * CONV_8_OFM_COL * CONV_8_OFM_CH / 2>(conv_8_out, out,
-                                                               reps);
+      AddLast<CONV_8_OFM_ROW * CONV_8_OFM_COL * CONV_8_OFM_CH / 2>(conv_8_out,
+                                                                   out, reps);
 }
 void ultra_net(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
                const unsigned int reps) {
@@ -636,69 +639,71 @@ void do_compute2(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
                                    CONV_7_OUT_BIT>(conv_7_out,
                                                    "conv_7_DSP6_out.txt", reps);
 #endif
-  hls::stream<ap_uint<32 * CONV_8_PE_DSP2>> conv_8_out("conv_7_out");
+  hls::stream<ap_uint<32 * CONV_8_PE_DSP2>> conv_8_out("conv_8_out");
+#pragma HLS STREAM variable = conv_8_out depth = 64 dim = 1
   conv1x1_DSPopt<CONV_8_IFM_ROW, CONV_8_IFM_COL, CONV_8_IFM_CH, CONV_8_IN_BIT,
                  CONV_8_OFM_CH, CONV_8_W_BIT, 32, CONV_8_SIMD_DSP2,
                  CONV_8_PE_DSP2, CONV_8_INPE>(conv_7_out, conv_8_w_dspopt,
                                               conv_8_out, reps);
+
   AddLast<CONV_8_OFM_ROW * CONV_8_OFM_COL * CONV_8_OFM_CH / 2>(conv_8_out, out,
                                                                reps);
 }
 
-void fastNet(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
-             const unsigned int reps) {
+void ultra_net2(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
+                const unsigned int reps) {
 
 #pragma HLS INTERFACE axis register both port = out
 #pragma HLS INTERFACE axis register both port = in
 #pragma HLS INTERFACE s_axilite port = reps bundle = control
 #pragma HLS INTERFACE s_axilite port = return bundle = control
 
-#pragma HLS ARRAY_PARTITION variable = conv_0_w complete dim = 1
-#pragma HLS ARRAY_PARTITION variable = conv_0_w complete dim = 2
-#pragma HLS ARRAY_PARTITION variable = conv_0_inc complete dim = 1
-#pragma HLS ARRAY_PARTITION variable = conv_0_bias complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_0_w_dspopt complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_0_w_dspopt complete dim = 2
+#pragma HLS ARRAY_PARTITION variable = conv_0_inc_dspopt complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_0_bias_dspopt complete dim = 1
 
-#pragma HLS ARRAY_PARTITION variable = conv_1_w complete dim = 1
-#pragma HLS ARRAY_PARTITION variable = conv_1_w complete dim = 2
-#pragma HLS ARRAY_PARTITION variable = conv_1_inc complete dim = 1
-#pragma HLS ARRAY_PARTITION variable = conv_1_bias complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_1_w_dspopt complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_1_w_dspopt complete dim = 2
+#pragma HLS ARRAY_PARTITION variable = conv_1_inc_dspopt complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_1_bias_dspopt complete dim = 1
 
-#pragma HLS ARRAY_PARTITION variable = conv_2_w complete dim = 1
-#pragma HLS ARRAY_PARTITION variable = conv_2_w complete dim = 2
-#pragma HLS ARRAY_PARTITION variable = conv_2_inc complete dim = 1
-#pragma HLS ARRAY_PARTITION variable = conv_2_bias complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_2_w_dspopt complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_2_w_dspopt complete dim = 2
+#pragma HLS ARRAY_PARTITION variable = conv_2_inc_dspopt complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_2_bias_dspopt complete dim = 1
 
-#pragma HLS ARRAY_PARTITION variable = conv_3_w complete dim = 1
-#pragma HLS ARRAY_PARTITION variable = conv_3_w complete dim = 2
-#pragma HLS ARRAY_PARTITION variable = conv_3_inc complete dim = 1
-#pragma HLS ARRAY_PARTITION variable = conv_3_bias complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_3_w_dspopt complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_3_w_dspopt complete dim = 2
+#pragma HLS ARRAY_PARTITION variable = conv_3_inc_dspopt complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_3_bias_dspopt complete dim = 1
 
-#pragma HLS ARRAY_PARTITION variable = conv_4_w complete dim = 1
-#pragma HLS ARRAY_PARTITION variable = conv_4_w complete dim = 2
-#pragma HLS ARRAY_PARTITION variable = conv_4_inc complete dim = 1
-#pragma HLS ARRAY_PARTITION variable = conv_4_bias complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_4_w_dspopt complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_4_w_dspopt complete dim = 2
+#pragma HLS ARRAY_PARTITION variable = conv_4_inc_dspopt complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_4_bias_dspopt complete dim = 1
 
-#pragma HLS ARRAY_PARTITION variable = conv_5_w complete dim = 1
-#pragma HLS ARRAY_PARTITION variable = conv_5_w complete dim = 1
-#pragma HLS ARRAY_PARTITION variable = conv_5_inc complete dim = 1
-#pragma HLS ARRAY_PARTITION variable = conv_5_bias complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_5_w_dspopt complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_5_w_dspopt complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_5_inc_dspopt complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_5_bias_dspopt complete dim = 1
 
-#pragma HLS ARRAY_PARTITION variable = conv_6_w complete dim = 1
-#pragma HLS ARRAY_PARTITION variable = conv_6_w complete dim = 2
-#pragma HLS ARRAY_PARTITION variable = conv_6_inc complete dim = 1
-#pragma HLS ARRAY_PARTITION variable = conv_6_bias complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_6_w_dspopt complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_6_w_dspopt complete dim = 2
+#pragma HLS ARRAY_PARTITION variable = conv_6_inc_dspopt complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_6_bias_dspopt complete dim = 1
 
-#pragma HLS ARRAY_PARTITION variable = conv_7_w complete dim = 1
-#pragma HLS ARRAY_PARTITION variable = conv_7_w complete dim = 2
-#pragma HLS ARRAY_PARTITION variable = conv_7_inc complete dim = 1
-#pragma HLS ARRAY_PARTITION variable = conv_7_bias complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_7_w_dspopt complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_7_w_dspopt complete dim = 2
+#pragma HLS ARRAY_PARTITION variable = conv_7_inc_dspopt complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_7_bias_dspopt complete dim = 1
 
-#pragma HLS ARRAY_PARTITION variable = conv_8_w complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = conv_8_w_dspopt complete dim = 1
 
   do_compute2(in, out, reps);
 }
 
-#ifdef DEBUG
+// #ifdef DEBUG
 
 void load_data(const char *path, char *ptr, unsigned int size) {
   std::ifstream f(path, std::ios::in | std::ios::binary);
@@ -751,7 +756,7 @@ int main(int argc, char const *argv[]) {
   hls::stream<my_ap_axis> output_stream_test("output stream test");
   ultra_net(input_stream, output_stream, 2);
 
-  fastNet(input_stream_test, output_stream_test, 2);
+  ultra_net2(input_stream_test, output_stream_test, 2);
 
   cout << "output size :" << output_stream.size() << endl;
 
@@ -781,4 +786,4 @@ int main(int argc, char const *argv[]) {
   return 0;
 }
 
-#endif
+// #endif

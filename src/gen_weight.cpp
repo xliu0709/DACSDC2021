@@ -162,7 +162,7 @@ void printConv3x3Header(
     for (int j = 0; j < K; j++) {
       of << "{";
       for (int k = 0; k < K * OUT_CH / PE * IN_CH / SIMD; k++) {
-        of << weights3[i][j][k].to_string(16);
+        of << "\"" << weights3[i][j][k].to_string(16) << "\"";
         if (k != K * OUT_CH / PE * IN_CH / SIMD - 1)
           of << ",";
       }

@@ -253,7 +253,7 @@ void conv1x1_DSPopt(stream<ap_uint<IN_BIT * INPE * 2>> &in,
                     const ap_uint<SIMD * W_BIT>
                         weights[PE][((IN_CH * 1) / SIMD) * (OUT_CH / PE)],
                     stream<ap_uint<PE * M_BIT>> &out, const unsigned reps = 1) {
-
+#pragma HLS DATAFLOW
   hls::stream<ap_uint<IN_BIT * SIMD>> conv1in("conv1in");
   conv1x1convert<IN_ROW, IN_COL, IN_CH, IN_BIT, INPE, SIMD, OUT_CH / PE>(
       in, conv1in, reps);

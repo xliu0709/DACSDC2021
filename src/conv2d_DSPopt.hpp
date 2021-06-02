@@ -23,7 +23,7 @@ void stream_in_row(
 
   if (skip_flag)
     return;
-  static ap_uint<IN_PE *IN_BIT> reg = 0;
+  ap_uint<IN_PE *IN_BIT> reg = 0;
 
   for (unsigned peIdx = 0; peIdx < IN_CH / IN_PE; peIdx++)
     for (unsigned w = 0; w < IN_W / 2 + 1; w++) {
