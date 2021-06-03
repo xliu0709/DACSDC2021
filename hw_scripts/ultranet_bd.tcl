@@ -898,4 +898,7 @@ proc create_root_design { parentCell } {
 
 create_root_design ""
 
-
+make_wrapper -files [get_files ./RTL/project_1.srcs/sources_1/bd/ultranet_bd/ultranet_bd.bd] -top
+add_files -norecurse ./RTL/project_1.srcs/sources_1/bd/ultranet_bd/hdl/ultranet_bd_wrapper.v
+launch_runs impl_1 -to_step write_bitstream -jobs 16
+wait_on_runs impl_1

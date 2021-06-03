@@ -118,21 +118,21 @@ int main(int argc, char **argv) {
       }
     }
   }
-  for (int r = 0; r < CONV_8_IFM_ROW; r++) {
-    for (int i = 0; i < CONV_8_IFM_CH; i += CONV_8_INPE) {
-      for (int c = 0; c < CONV_8_IFM_COL; c += 2) {
-        ap_uint<CONV_8_IN_BIT * CONV_8_INPE> data0;
-        ap_uint<CONV_8_IN_BIT * CONV_8_INPE> data1;
-        for (int s = 0; s < CONV_8_INPE; s++) {
-          data0((s + 1) * CONV_8_IN_BIT - 1, s * CONV_8_IN_BIT) =
-              IFM[i + s][r][c];
-          data1((s + 1) * CONV_8_IN_BIT - 1, s * CONV_8_IN_BIT) =
-              IFM[i + s][r][c + 1];
-        }
-        test_in << (data1, data0);
-      }
-    }
-  }
+  // for (int r = 0; r < CONV_8_IFM_ROW; r++) {
+  //   for (int i = 0; i < CONV_8_IFM_CH; i += CONV_8_INPE) {
+  //     for (int c = 0; c < CONV_8_IFM_COL; c += 2) {
+  //       ap_uint<CONV_8_IN_BIT * CONV_8_INPE> data0;
+  //       ap_uint<CONV_8_IN_BIT * CONV_8_INPE> data1;
+  //       for (int s = 0; s < CONV_8_INPE; s++) {
+  //         data0((s + 1) * CONV_8_IN_BIT - 1, s * CONV_8_IN_BIT) =
+  //             IFM[i + s][r][c];
+  //         data1((s + 1) * CONV_8_IN_BIT - 1, s * CONV_8_IN_BIT) =
+  //             IFM[i + s][r][c + 1];
+  //       }
+  //       test_in << (data1, data0);
+  //     }
+  //   }
+  // }
 
   for (int r = 0; r < CONV_8_IFM_ROW; r++) {
     for (int c = 0; c < CONV_8_IFM_COL; c++) {
@@ -147,29 +147,29 @@ int main(int argc, char **argv) {
       }
     }
   };
-  for (int r = 0; r < CONV_8_IFM_ROW; r++) {
-    for (int c = 0; c < CONV_8_IFM_COL; c++) {
+  // for (int r = 0; r < CONV_8_IFM_ROW; r++) {
+  //   for (int c = 0; c < CONV_8_IFM_COL; c++) {
 
-      for (int i = 0; i < CONV_8_IFM_CH; i += CONV_8_SIMD) {
-        ap_uint<CONV_8_IN_BIT * CONV_8_SIMD> data;
-        for (int s = 0; s < CONV_8_SIMD; s++) {
-          data((s + 1) * CONV_8_IN_BIT - 1, s * CONV_8_IN_BIT) =
-              IFM[i + s][r][c];
-        }
-        golden_in << data;
-      }
-    }
-  };
+  //     for (int i = 0; i < CONV_8_IFM_CH; i += CONV_8_SIMD) {
+  //       ap_uint<CONV_8_IN_BIT * CONV_8_SIMD> data;
+  //       for (int s = 0; s < CONV_8_SIMD; s++) {
+  //         data((s + 1) * CONV_8_IN_BIT - 1, s * CONV_8_IN_BIT) =
+  //             IFM[i + s][r][c];
+  //       }
+  //       golden_in << data;
+  //     }
+  //   }
+  // };
 
-  int reps = 2;
+  int reps = 1;
 
-  hls::stream<ap_uint<32 * CONV_8_PE>> golden_out("golden_out");
+  // hls::stream<ap_uint<32 * CONV_8_PE>> golden_out("golden_out");
 
-  conv1x1_hls_wrapper(golden_in, golden_out, reps);
+  // conv1x1_hls_wrapper(golden_in, golden_out, reps);
 
-  print_pe_stream_through<CONV_8_OFM_ROW, CONV_8_OFM_COL, CONV_8_OFM_CH,
-                          CONV_8_PE, 32>(golden_out, "conv_ultranet_out.txt",
-                                         reps);
+  // print_pe_stream_through<CONV_8_OFM_ROW, CONV_8_OFM_COL, CONV_8_OFM_CH,
+  //                         CONV_8_PE, 32>(golden_out, "conv_ultranet_out.txt",
+  //                                        reps);
 
   hls::stream<ap_uint<32 * CONV_8_PE_DSP2>> test_out("test_out");
 

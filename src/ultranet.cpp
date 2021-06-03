@@ -23,6 +23,7 @@ using namespace std;
 #include "weight3.hpp"
 #include <ap_int.h>
 #include <hls_video.h>
+#include <iostream>
 #include <stdint.h>
 
 #define IN_IMAGE_WIDTH 640
@@ -70,9 +71,9 @@ void mat_to_stream(
 void resize(hls::stream<ap_uint<24>> &in, hls::stream<ap_uint<24>> &out) {
 #pragma HLS dataflow
   hls::Mat<IN_IMAGE_HEIGHT, IN_IMAGE_WIDTH, HLS_8UC3> raw_img;
-#pragma HLS STREAM variable = raw_img depth = 128 dim = 1
+#pragma HLS STREAM variable = raw_img depth = 1024 dim = 1
   hls::Mat<RESIZE_IMAGE_HEIGHT, RESIZE_IMAGE_WIDTH, HLS_8UC3> resize_img;
-#pragma HLS STREAM variable = resize_img depth = 128 dim = 1
+#pragma HLS STREAM variable = resize_img depth = 1024 dim = 1
   stream_to_mat(in, raw_img);
   // hls::Resize(raw_img, resize_img, HLS_INTER_LINEAR);
   hls::Resize_opr_linear(raw_img, resize_img);
@@ -405,17 +406,17 @@ void ultra_net2(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
 }
 
 void do_compute2(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
-                 const unsigned int reps) {
+                 const unsigned int reps = 1) {
 #pragma HLS DATAFLOW
 
   const unsigned int num_per_rep = 360 * 640 * 3 * 8 / 64;
 
   hls::stream<ap_uint<64>> in_stream_extract("in_stream_extract");
-#pragma HLS STREAM variable = in_stream_extract depth = 16 dim = 1
+#pragma HLS STREAM variable = in_stream_extract depth = 1024 dim = 1
   ExtractPixels<64, num_per_rep>(in, in_stream_extract, reps);
 
   hls::stream<ap_uint<64 * 3>> in_stream0("in_stream0");
-#pragma HLS STREAM variable = in_stream0 depth = 16 dim = 1
+#pragma HLS STREAM variable = in_stream0 depth = 1024 dim = 1
   StreamingDataWidthConverter_Batch<64, 64 * 3, num_per_rep>(in_stream_extract,
                                                              in_stream0, reps);
 
@@ -651,7 +652,7 @@ void do_compute2(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
 }
 
 void ultra_net(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
-               const unsigned int reps) {
+               const unsigned reps) {
 
 #pragma HLS INTERFACE axis register both port = out
 #pragma HLS INTERFACE axis register both port = in

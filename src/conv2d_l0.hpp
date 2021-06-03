@@ -41,13 +41,13 @@ void stream_out_data_l0(stream<ap_uint<3 * IN_BIT * 3>> &out,
   if (skip_flag)
     return;
 
-  for (int peIdx = 0; peIdx < OUTPENUM; peIdx++)
-    for (int c = 0; c < IN_W; c++)
-      for (int kc = 0; kc < 3; kc++) {
+  for (unsigned peIdx = 0; peIdx < OUTPENUM; peIdx++)
+    for (unsigned c = 0; c < IN_W; c++)
+      for (unsigned kc = 0; kc < 3; kc++) {
 #pragma HLS pipeline
         ap_uint<3 * IN_BIT> data[4];
 #pragma HLS array_partition variable = data dim = 1 complete
-        for (int i = 0; i < 4; i++) {
+        for (unsigned i = 0; i < 4; i++) {
           data[i] = row_buffer[i][c + kc];
         }
         ap_uint<2> row_sel0, row_sel1, row_sel2;
@@ -77,13 +77,13 @@ void conv3padding_l0(stream<ap_uint<3 * IN_BIT>> &in,
   static_assert(K == 3, "K!=3");
   ap_uint<IN_CH * IN_BIT> row_buffer[4][IN_W + 2];
 #pragma HLS ARRAY_PARTITION variable = row_buffer dim = 1 complete
+#pragma HLS RESOURCE variable = row_buffer core = RAM_S2P_BRAM
   ap_uint<2> storeBufferIdx = 0;
   ap_uint<2> loadBufferIdx = -2;
   ap_int<10> rowIdx = -2;
 
   for (unsigned rep = 0; rep < reps * IN_H + 2; rep++) {
 #pragma HLS dependence intra false variable = row_buffer
-#pragma HLS dependence inter false variable = row_buffer
     stream_in_row_l0<IN_W, IN_BIT>(in, row_buffer, (rep >= reps * IN_H),
                                    storeBufferIdx);
     stream_out_data_l0<IN_H, IN_W, IN_BIT, OUTPENUM>(out, row_buffer, (rep < 2),
@@ -102,19 +102,54 @@ template <unsigned IN_BIT, unsigned W_BIT, unsigned PROD_BIT>
 void simd_mac9_DSP2(ap_uint<IN_BIT> invec[9], ap_int<W_BIT> w0vec[9],
                     ap_int<W_BIT> w1vec[9], ap_int<PROD_BIT> &out0,
                     ap_int<PROD_BIT> &out1) {
-#pragma HLS pipeline
+// #pragma HLS pipeline II = 1
 #pragma HLS array_partition variable = invec
 #pragma HLS array_partition variable = w1vec
 #pragma HLS array_partition variable = w0vec
+
   ap_int<PROD_BIT * 2> acc = 0;
+
+  // cout << "ivec" << endl;
+  // for (int i = 0; i < 9; i++) {
+  //   cout << invec[i] << endl;
+  // }
+  // getchar();
+
+  // cout << "wvec0" << endl;
+  // for (int i = 0; i < 9; i++) {
+  //   cout << w0vec[i] << endl;
+  // }
+  // getchar();
+
+  // cout << "wvec1" << endl;
+  // for (int i = 0; i < 9; i++) {
+  //   cout << w1vec[i] << endl;
+  // }
+  // getchar();
+  // cout << "rst,m" << endl;
   for (int i = 0; i < 9; i++) {
     ap_int<PROD_BIT + W_BIT> rst = w1vec[i] * (1 << PROD_BIT) + w0vec[i];
     ap_int<PROD_BIT * 2> m = invec[i] * rst;
+
     acc += m;
+    // cout << rst.to_string(10) << "," << invec[i].to_string(10) << ","
+    //      << m.to_string(10) << endl;
   }
+  // getchar();
 
   out0 = acc(PROD_BIT - 1, 0);
   out1 = acc(PROD_BIT * 2 - 1, PROD_BIT) + acc[PROD_BIT - 1];
+}
+
+template <unsigned IN_BIT>
+void loadInReg9(ap_uint<IN_BIT * 9> inData, ap_uint<IN_BIT> ivec[9]) {
+#pragma HLS pipeline II = 1
+#pragma HLS inline off
+#pragma HLS ARRAY_PARTITION variable = ivec complete dim = 1
+
+  for (unsigned s = 0; s < 9; s++) {
+    ivec[s] = inData((s + 1) * IN_BIT - 1, s * IN_BIT);
+  }
 }
 
 template <unsigned OUT_ROW, unsigned OUT_COL, unsigned OUT_CH, unsigned PE,
@@ -134,12 +169,6 @@ void convDSPOpt_l0(stream<ap_uint<IN_BIT * 9>> &in,
   // #pragma HLS ARRAY_PARTITION variable = m_lo complete dim = 1
 
   const unsigned PROD_BIT = IN_BIT + W_BIT + 4;
-  ap_int<W_BIT> wvec[PE][9];
-#pragma HLS ARRAY_PARTITION variable = wvec complete dim = 1
-#pragma HLS ARRAY_PARTITION variable = wvec complete dim = 2
-
-  ap_uint<IN_BIT> ivec[9];
-#pragma HLS ARRAY_PARTITION variable = ivec complete dim = 1
 
   ap_int<M_BIT> outPartialArr[PE];
 #pragma HLS ARRAY_PARTITION variable = outPartialArr complete dim = 1
@@ -148,11 +177,17 @@ void convDSPOpt_l0(stream<ap_uint<IN_BIT * 9>> &in,
     for (unsigned peIdx = 0; peIdx < OUT_CH / PE; peIdx++)
       for (unsigned int w = 0; w < OUT_COL; w++) {
         for (unsigned int kc = 0; kc < 3; kc++) {
-#pragma HLS pipeline
-          ap_uint<IN_BIT * 9> inData = in.read();
-          for (int s = 0; s < 9; s++) {
-            ivec[s] = inData((s + 1) * IN_BIT - 1, s * IN_BIT);
-          }
+#pragma HLS pipeline II = 1
+
+          ap_uint<IN_BIT> ivec[9];
+#pragma HLS ARRAY_PARTITION variable = ivec complete dim = 1
+          ap_int<W_BIT> wvec[PE][9];
+#pragma HLS ARRAY_PARTITION variable = wvec complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = wvec complete dim = 2
+
+          ap_uint<IN_BIT * 9> inData;
+          in >> inData;
+          loadInReg9<IN_BIT>(inData, ivec);
           for (int i = 0; i < PE; i++) {
             for (int s = 0; s < 9; s++) {
               wvec[i][s] = weights[i][s / 3][peIdx * 3 + kc](
@@ -166,6 +201,10 @@ void convDSPOpt_l0(stream<ap_uint<IN_BIT * 9>> &in,
             ap_int<16> outPartial1;
             simd_mac9_DSP2<IN_BIT, W_BIT, 16>(ivec, wvec[p], wvec[p + 1],
                                               outPartial0, outPartial1);
+
+            // cout << outPartial0.to_string(10) << endl;
+            // cout << outPartial1.to_string(10) << endl;
+
             if (kc == 0) {
               outPartialArr[p] = outPartial0;
               outPartialArr[p + 1] = outPartial1;
@@ -174,13 +213,16 @@ void convDSPOpt_l0(stream<ap_uint<IN_BIT * 9>> &in,
               outPartialArr[p + 1] += outPartial1;
             }
           }
+          // getchar();
           ap_uint<M_BIT * PE> odata;
           if (kc == 2) {
             // cout << outPartialArr[0].to_string(16) << endl;
 
             for (int i = 0; i < PE; i++) {
+              // cout << outPartialArr[0].to_string(16) << ",";
               odata((i + 1) * M_BIT - 1, i * M_BIT) = outPartialArr[i];
             }
+
             out.write(odata);
           }
         }

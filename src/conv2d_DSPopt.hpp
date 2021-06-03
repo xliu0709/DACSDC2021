@@ -20,7 +20,7 @@ void stream_in_row(
     ap_uint<IN_PE * IN_BIT * 2> row_buffer[SIMD / IN_PE][4]
                                           [(IN_W / 2 + 1) * IN_CH / SIMD],
     bool skip_flag, ap_uint<2> rowBufferIdx) {
-
+#pragma HLS inline off
   if (skip_flag)
     return;
   ap_uint<IN_PE *IN_BIT> reg = 0;
@@ -52,39 +52,57 @@ void stream_out_data(
                                           [(IN_W / 2 + 1) * IN_CH / SIMD],
     bool skip_flag, ap_int<12> outRowIdx, ap_uint<2> startRowBufferIdx) {
 #pragma HLS array_partition variable = row_buffer dim = 1 complete
-  const unsigned IN_PE_BIT = IN_PE * IN_BIT;
 
+  const unsigned IN_PE_BIT = IN_PE * IN_BIT;
+  const unsigned SIMDNUM = IN_CH / SIMD;
+  const unsigned WLEN = IN_W / 2 + 1;
   if (skip_flag)
     return;
 
-  for (unsigned peIdx = 0; peIdx < OUTPENUM; peIdx++) {
-    for (unsigned w = 0; w < IN_W / 2 + 1; w++) {
-      for (unsigned wr = 0; wr < K; wr++) {
-        for (unsigned simdIdx = 0; simdIdx < IN_CH / SIMD; simdIdx++) {
-#pragma HLS pipeline
-          ap_uint<SIMD * IN_BIT> data0;
-          ap_uint<SIMD * IN_BIT> data1;
-          ap_uint<IN_PE * IN_BIT * 2> buffer_data[SIMD / IN_PE];
-#pragma HLS array_partition variable = buff_data complete
-          ap_uint<2> rowBufferIdx = startRowBufferIdx + wr;
-          for (unsigned i = 0; i < SIMD / IN_PE; i++) {
-            buffer_data[i] =
-                row_buffer[i][rowBufferIdx][w * IN_CH / SIMD + simdIdx];
-          }
+  ap_uint<8> infoldIdx = 0;
+  ap_uint<8> w = 0;
 
-          if (outRowIdx - K / 2 + wr < 0 || outRowIdx - K / 2 + wr >= IN_H) {
-            data0 = 0;
-            data1 = 0;
-          } else {
-            for (unsigned i = 0; i < SIMD / IN_PE; i++) {
-              data0((i + 1) * IN_PE_BIT - 1, i * IN_PE_BIT) =
-                  buffer_data[i](IN_PE_BIT - 1, 0);
-              data1((i + 1) * IN_PE_BIT - 1, i * IN_PE_BIT) =
-                  buffer_data[i](IN_PE_BIT * 2 - 1, IN_PE_BIT);
-            }
-          }
-          out.write((data1, data0));
+  for (unsigned peIdx = 0; peIdx < OUTPENUM; peIdx++) {
+    for (unsigned cycle = 0; cycle < WLEN * K * SIMDNUM; cycle++) {
+      // for (unsigned w = 0; w < WLEN; w++) {
+      //   for (unsigned wr = 0; wr < K; wr++) {
+      //     for (unsigned simdIdx = 0; simdIdx < SIMDNUM; simdIdx++) {
+      ap_uint<2> wr = infoldIdx / SIMDNUM;
+      ap_uint<4> simdIdx = infoldIdx % SIMDNUM;
+#pragma HLS pipeline
+      ap_uint<SIMD * IN_BIT> data0;
+      ap_uint<SIMD * IN_BIT> data1;
+      ap_uint<IN_PE * IN_BIT * 2> buffer_data[SIMD / IN_PE];
+#pragma HLS array_partition variable = buff_data complete
+      ap_uint<2> rowBufferIdx = startRowBufferIdx + wr;
+      for (unsigned i = 0; i < SIMD / IN_PE; i++) {
+#pragma HLS unroll
+        buffer_data[i] = row_buffer[i][rowBufferIdx][w * SIMDNUM + simdIdx];
+      }
+
+      if (outRowIdx - K / 2 + wr < 0 || outRowIdx - K / 2 + wr >= IN_H) {
+        data0 = 0;
+        data1 = 0;
+      } else {
+        for (unsigned i = 0; i < SIMD / IN_PE; i++) {
+          data0((i + 1) * IN_PE_BIT - 1, i * IN_PE_BIT) =
+              buffer_data[i](IN_PE_BIT - 1, 0);
+          data1((i + 1) * IN_PE_BIT - 1, i * IN_PE_BIT) =
+              buffer_data[i](IN_PE_BIT * 2 - 1, IN_PE_BIT);
         }
+      }
+      out.write((data1, data0));
+
+      if (cycle == WLEN * K * SIMDNUM - 1) {
+        w = 0;
+      } else if (infoldIdx == K * SIMDNUM - 1) {
+        w++;
+      }
+
+      if (infoldIdx == K * SIMDNUM - 1) {
+        infoldIdx = 0;
+      } else {
+        infoldIdx++;
       }
     }
   }
@@ -101,7 +119,7 @@ void conv3padding(stream<ap_uint<IN_PE * IN_BIT * 2>> &in,
   ap_uint<IN_PE * IN_BIT * 2> row_buffer[SIMD / IN_PE][4]
                                         [(IN_W / 2 + 1) * IN_CH / SIMD];
 #pragma HLS ARRAY_PARTITION variable = row_buffer dim = 1 complete
-
+#pragma HLS RESOURCE variable = row_buffer core = RAM_S2P_BRAM
   ap_uint<8> inh = 0;
   ap_uint<8> outh = 0;
 
@@ -111,13 +129,13 @@ void conv3padding(stream<ap_uint<IN_PE * IN_BIT * 2>> &in,
 
   for (unsigned rep = 0; rep < reps * IN_H + 2; rep++) {
 #pragma HLS dependence intra false variable = row_buffer
-#pragma HLS dependence inter false variable = row_buffer
     stream_in_row<IN_W, IN_CH, IN_BIT, IN_PE, SIMD>(
         in, row_buffer, (rep >= reps * IN_H), storeBufferIdx);
     stream_out_data<K, IN_H, IN_W, IN_CH, IN_BIT, IN_PE, SIMD, OUTPENUM>(
         out, row_buffer, (rep < 2), rowIdx, loadBufferIdx);
     loadBufferIdx++;
     storeBufferIdx++;
+
     if (rowIdx == IN_H - 1) {
       rowIdx = 0;
     } else {
@@ -300,7 +318,8 @@ void simd_MAC_compare(ap_int<PROD_BIT * 2 + W_BIT> wpack[SIMD],
 
     // cout << r0 << "," << p0 << "," << x0_seg * w2_seg << endl;
     // cout << r1 << "," << p1 << "," << x0_seg * w1_seg + x1_seg * w2_seg <<
-    // endl; cout << r2 << "," << p2 << "," << x0_seg * w0_seg + x1_seg * w1_seg
+    // endl; cout << r2 << "," << p2 << "," << x0_seg * w0_seg + x1_seg *
+    // w1_seg
     // << endl; cout << r3 << "," << p3 << "," << x1_seg * w0_seg << endl;
 
     // assert(p0 == x0_seg * w2_seg);
@@ -419,10 +438,11 @@ void convDSPOpt(
             }
 
             // if (p == 0) {
-            //   cout << firPartial0 << "," << firPartial1 << "," << firPartial2
+            //   cout << firPartial0 << "," << firPartial1 << "," <<
+            //   firPartial2
             //        << "," << firPartial3 << endl;
-            //   cout << outPartialArr0[p] << "," << outPartialArr1[p] << endl;
-            //   getchar();
+            //   cout << outPartialArr0[p] << "," << outPartialArr1[p] <<
+            //   endl; getchar();
             // }
           }
           ap_int<OUT_BIT * PE> oData0;
@@ -432,8 +452,9 @@ void convDSPOpt(
             // ap_uint<PE * M_BIT> out_buf0;
             // ap_uint<PE * M_BIT> out_buf1;
             for (int p = 0; p < PE; p++) {
-              // out_buf0(p * M_BIT + M_BIT - 1, p * M_BIT) = outPartialArr0[p];
-              // out_buf1(p * M_BIT + M_BIT - 1, p * M_BIT) = outPartialArr1[p];
+              // out_buf0(p * M_BIT + M_BIT - 1, p * M_BIT) =
+              // outPartialArr0[p]; out_buf1(p * M_BIT + M_BIT - 1, p * M_BIT)
+              // = outPartialArr1[p];
               oData0((p + 1) * OUT_BIT - 1, p * OUT_BIT) =
                   bn_qurelu_fixed<M_BIT, OUT_BIT, INC_BIT, BIAS_BIT, IN_BIT,
                                   W_BIT, L_SHIFT>(

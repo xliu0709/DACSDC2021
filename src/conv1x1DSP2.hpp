@@ -18,7 +18,7 @@ void streamInOneRowTwoPix(
     ap_uint<IN_PE * IN_BIT> row_buffer[SIMD / IN_PE][2][2]
                                       [IN_W / 2 * IN_CH / SIMD],
     bool skip_flag, ap_uint<1> rowBufferIdx) {
-
+#pragma HLS inline off
   const unsigned INPENUM = SIMD / IN_PE;
   const unsigned SIMDNUM = IN_CH / SIMD;
 
@@ -86,15 +86,17 @@ void conv1x1convert(stream<ap_uint<IN_PE * IN_BIT * 2>> &in,
   const unsigned INPENUM = SIMD / IN_PE;
   const unsigned SIMDNUM = IN_CH / SIMD;
   ap_uint<IN_PE * IN_BIT> row_buffer[INPENUM][2][2][IN_W / 2 * SIMDNUM];
+
 #pragma HLS ARRAY_PARTITION variable = row_buffer dim = 1 complete
-#pragma HLS ARRAY_PARTITION variable = row_buffer dim = 1 complete
+// #pragma HLS ARRAY_PARTITION variable = row_buffer dim = 2 complete
+#pragma HLS RESOURCE variable = row_buffer core = RAM_S2P_BRAM
 
   ap_uint<1> storeBufferIdx = 0;
   ap_uint<1> loadBufferIdx = 1;
 
   for (unsigned rep = 0; rep < reps * IN_H + 1; rep++) {
 #pragma HLS dependence intra false variable = row_buffer
-#pragma HLS dependence inter false variable = row_buffer
+
     streamInOneRowTwoPix<IN_W, IN_CH, IN_BIT, IN_PE, SIMD>(
         in, row_buffer, (rep >= reps * IN_H), storeBufferIdx);
     streamOutOneRowTwoPix<IN_H, IN_W, IN_CH, IN_BIT, IN_PE, SIMD, OUTPENUM>(

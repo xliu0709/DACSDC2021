@@ -77,6 +77,60 @@ void weightReorderDSP6(
 
 template <unsigned K, unsigned IN_CH, unsigned OUT_CH, unsigned W_BIT,
           unsigned PE, unsigned SIMD>
+void weightPackDSP2(ap_int<W_BIT> weight[K][K][OUT_CH][IN_CH],
+                    ap_uint<(W_BIT * 2 + 1) * SIMD>
+                        weightDSP6[PE / 2][3][K * IN_CH / SIMD * OUT_CH / PE],
+                    bool first) {
+  const unsigned WPACK_BIT = W_BIT * 2 + 1;
+  for (int kr = 0; kr < K; kr++)
+    for (int kc = 0; kc < K; kc++)
+      for (int oc = 0; oc < OUT_CH; oc += PE) {
+        for (int ic = 0; ic < IN_CH; ic += SIMD) {
+          for (int pp = 0; pp < PE; pp += 2) {
+            ap_uint<(W_BIT * 2 + 1) * SIMD> data;
+            for (int s = 0; s < SIMD; s++) {
+              ap_int<W_BIT> w0 = weight[kr][kc][oc + pp][ic + s];
+              ap_int<W_BIT> w1 = weight[kr][kc][oc + pp + 1][ic + s];
+              ap_int<WPACK_BIT> wpack = w1 * (1 << W_BIT) + w0;
+              data(WPACK_BIT * (s + 1) - 1, WPACK_BIT * s) = wpack;
+            }
+            weightDSP6[pp / 2][kc][oc / PE * K * IN_CH / SIMD +
+                                   kr * IN_CH / SIMD + ic / SIMD] = data;
+          }
+        }
+      }
+}
+
+template <unsigned K, unsigned IN_CH, unsigned OUT_CH, unsigned W_BIT,
+          unsigned PE, unsigned SIMD>
+void weightPackDSP6(ap_int<W_BIT> weight[K][K][OUT_CH][IN_CH],
+                    ap_uint<(W_BIT * 3 + 2) * SIMD>
+                        weightDSP6[PE][K * IN_CH / SIMD * OUT_CH / PE]) {
+  const unsigned WPACK_BIT = W_BIT * 3 + 2;
+  for (int kr = 0; kr < K; kr++)
+    for (int kc = 0; kc < K; kc++)
+      for (int oc = 0; oc < OUT_CH; oc += PE) {
+        for (int ic = 0; ic < IN_CH; ic += SIMD) {
+          for (int pp = 0; pp < PE; pp++) {
+            ap_uint<WPACK_BIT * SIMD> data;
+            for (int s = 0; s < SIMD; s++) {
+              ap_int<W_BIT> w0 = weight[kr][0][oc + pp][ic + s];
+              ap_int<W_BIT> w1 = weight[kr][1][oc + pp][ic + s];
+              ap_int<W_BIT> w2 = weight[kr][2][oc + pp][ic + s];
+
+              ap_int<WPACK_BIT> wpack =
+                  w0 * (1 << (W_BIT * 2 + 1)) + w1 * (1 << W_BIT) + w2;
+              data(WPACK_BIT * (s + 1) - 1, WPACK_BIT * s) = wpack;
+            }
+            weightDSP6[pp / 2][kc][oc / PE * K * IN_CH / SIMD +
+                                   kr * IN_CH / SIMD + ic / SIMD] = data;
+          }
+        }
+      }
+}
+
+template <unsigned K, unsigned IN_CH, unsigned OUT_CH, unsigned W_BIT,
+          unsigned PE, unsigned SIMD>
 void ultranetConv3x3WeightToWeight(
     const ap_uint<W_BIT * SIMD> weightU[PE][K * K * OUT_CH / PE * IN_CH / SIMD],
     ap_int<W_BIT> weight[K][K][OUT_CH][IN_CH]) {

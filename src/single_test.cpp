@@ -164,21 +164,35 @@ int main(int argc, char **argv) {
       }
     }
   }
-  for (int r = 0; r < CONV_1_IFM_ROW; r++) {
-    for (int i = 0; i < CONV_1_IFM_CH; i += CONV_1_INPE) {
-      for (int c = 0; c < CONV_1_IFM_COL; c += 2) {
-        ap_uint<CONV_1_IN_BIT * CONV_1_INPE> data0;
-        ap_uint<CONV_1_IN_BIT * CONV_1_INPE> data1;
-        for (int s = 0; s < CONV_1_INPE; s++) {
-          data0((s + 1) * CONV_1_IN_BIT - 1, s * CONV_1_IN_BIT) =
-              IFM[i + s][r][c];
-          data1((s + 1) * CONV_1_IN_BIT - 1, s * CONV_1_IN_BIT) =
-              IFM[i + s][r][c + 1];
-        }
-        test_in << (data1, data0);
-      }
-    }
-  }
+  // for (int r = 0; r < CONV_1_IFM_ROW; r++) {
+  //   for (int i = 0; i < CONV_1_IFM_CH; i += CONV_1_INPE) {
+  //     for (int c = 0; c < CONV_1_IFM_COL; c += 2) {
+  //       ap_uint<CONV_1_IN_BIT * CONV_1_INPE> data0;
+  //       ap_uint<CONV_1_IN_BIT * CONV_1_INPE> data1;
+  //       for (int s = 0; s < CONV_1_INPE; s++) {
+  //         data0((s + 1) * CONV_1_IN_BIT - 1, s * CONV_1_IN_BIT) =
+  //             IFM[i + s][r][c];
+  //         data1((s + 1) * CONV_1_IN_BIT - 1, s * CONV_1_IN_BIT) =
+  //             IFM[i + s][r][c + 1];
+  //       }
+  //       test_in << (data1, data0);
+  //     }
+  //   }
+  // }
+  // for (int r = 0; r < CONV_1_IFM_ROW; r++) {
+  //   for (int c = 0; c < CONV_1_IFM_COL; c++) {
+
+  //     for (int i = 0; i < CONV_1_IFM_CH; i += CONV_1_SIMD) {
+  //       ap_uint<CONV_1_IN_BIT * CONV_1_SIMD> data;
+  //       for (int s = 0; s < CONV_1_SIMD; s++) {
+  //         data((s + 1) * CONV_1_IN_BIT - 1, s * CONV_1_IN_BIT) =
+  //             IFM[i + s][r][c];
+  //       }
+  //       golden_in << data;
+  //     }
+  //   }
+  // }
+
   for (int r = 0; r < CONV_1_IFM_ROW; r++) {
     for (int c = 0; c < CONV_1_IFM_COL; c++) {
 
@@ -193,35 +207,22 @@ int main(int argc, char **argv) {
     }
   }
 
-  for (int r = 0; r < CONV_1_IFM_ROW; r++) {
-    for (int c = 0; c < CONV_1_IFM_COL; c++) {
+  // hls::stream<ap_uint<CONV_1_OUT_BIT * CONV_1_OFM_CH>>
+  // golden_out("golden_out");
 
-      for (int i = 0; i < CONV_1_IFM_CH; i += CONV_1_SIMD) {
-        ap_uint<CONV_1_IN_BIT * CONV_1_SIMD> data;
-        for (int s = 0; s < CONV_1_SIMD; s++) {
-          data((s + 1) * CONV_1_IN_BIT - 1, s * CONV_1_IN_BIT) =
-              IFM[i + s][r][c];
-        }
-        golden_in << data;
-      }
-    }
-  }
+  // conv3x3_bn_act_hls_wrapper(golden_in, golden_out, 2);
 
-  hls::stream<ap_uint<CONV_1_OUT_BIT * CONV_1_OFM_CH>> golden_out("golden_out");
-
-  conv3x3_bn_act_hls_wrapper(golden_in, golden_out, 2);
-
-  print_mavu_stream_through<CONV_1_OFM_ROW, CONV_1_OFM_COL, CONV_1_OFM_CH,
-                            CONV_1_PE, CONV_1_OUT_BIT>(
-      golden_out, "conv_ultranet_out.txt", 2);
+  // print_mavu_stream_through<CONV_1_OFM_ROW, CONV_1_OFM_COL, CONV_1_OFM_CH,
+  //                           CONV_1_PE, CONV_1_OUT_BIT>(
+  //     golden_out, "conv_ultranet_out.txt", 2);
 
   hls::stream<ap_uint<CONV_1_OUT_BIT * CONV_1_PE_DSP6 * 2>> test_out(
       "test_out");
 
-  conv3x3_bn_act_DSPopt_hls_wrapper(test_in, test_out, 2);
+  conv3x3_bn_act_DSPopt_hls_wrapper(test_in, test_out, 1);
 
   print_mavu_DSPopt_stream_through<CONV_1_OFM_ROW, CONV_1_OFM_COL,
                                    CONV_1_OFM_CH, CONV_1_PE_DSP6,
                                    CONV_1_OUT_BIT>(test_out,
-                                                   "conv_DSP2_out.txt", 2);
+                                                   "conv_DSP6_out.txt", 1);
 }
