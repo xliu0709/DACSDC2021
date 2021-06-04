@@ -17,7 +17,7 @@ ultranet:
 	$(CXX) $(CFLAGS) $(CINCLUDES) src/ultranet.cpp -o ultranet.out 
 
 test: 
-	$(CXX) $(CFLAGS) $(CINCLUDES) src/single_test_l0.cpp -o test.out 
+	$(CXX) $(CFLAGS) $(CINCLUDES) src/single_test_conv1x1.cpp -o test.out 
 
 clean:
 	rm -f *.out

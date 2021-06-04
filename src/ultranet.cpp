@@ -442,10 +442,9 @@ void do_compute2(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
       "conv_0_out");
 #pragma HLS STREAM variable = conv_0_out depth = 128 dim = 1
   conv3x3_l0_bn_act_DSPopt<CONV_0_IFM_ROW, CONV_0_IFM_COL, CONV_0_IFM_CH,
-                           CONV_0_IN_BIT, CONV_0_OFM_CH, CONV_0_OUT_BIT,
-                           CONV_0_W_BIT, 21, CONV_0_INC_BIT, CONV_0_BIAS_BIT,
-                           CONV_0_SIMD_DSP6, 3, CONV_0_INPE, CONV_0_PE_DSP6,
-                           CONV_0_L_SHIFT>(
+                           CONV_0_IN_BIT, CONV_0_OFM_CH, CONV_0_OUT_BIT, 8, 21,
+                           CONV_0_INC_BIT, CONV_0_BIAS_BIT, CONV_0_SIMD_DSP6, 3,
+                           CONV_0_INPE, CONV_0_PE_DSP6, CONV_0_L_SHIFT>(
       in_stream2, conv_0_w_dspopt, conv_0_inc_dspopt, conv_0_bias_dspopt,
       conv_0_out, reps);
 #ifdef DEBUG
@@ -643,9 +642,8 @@ void do_compute2(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
   hls::stream<ap_uint<32 * CONV_8_PE_DSP2>> conv_8_out("conv_8_out");
 #pragma HLS STREAM variable = conv_8_out depth = 64 dim = 1
   conv1x1_DSPopt<CONV_8_IFM_ROW, CONV_8_IFM_COL, CONV_8_IFM_CH, CONV_8_IN_BIT,
-                 CONV_8_OFM_CH, CONV_8_W_BIT, 32, CONV_8_SIMD_DSP2,
-                 CONV_8_PE_DSP2, CONV_8_INPE>(conv_7_out, conv_8_w_dspopt,
-                                              conv_8_out, reps);
+                 CONV_8_OFM_CH, 8, 32, CONV_8_SIMD_DSP2, CONV_8_PE_DSP2,
+                 CONV_8_INPE>(conv_7_out, conv_8_w_dspopt, conv_8_out, reps);
 
   AddLast<CONV_8_OFM_ROW * CONV_8_OFM_COL * CONV_8_OFM_CH / 2>(conv_8_out, out,
                                                                reps);

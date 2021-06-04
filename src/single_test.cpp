@@ -207,14 +207,13 @@ int main(int argc, char **argv) {
     }
   }
 
-  // hls::stream<ap_uint<CONV_1_OUT_BIT * CONV_1_OFM_CH>>
-  // golden_out("golden_out");
+  hls::stream<ap_uint<CONV_1_OUT_BIT * CONV_1_OFM_CH>> golden_out("golden_out");
 
-  // conv3x3_bn_act_hls_wrapper(golden_in, golden_out, 2);
+  conv3x3_bn_act_hls_wrapper(golden_in, golden_out, 1);
 
-  // print_mavu_stream_through<CONV_1_OFM_ROW, CONV_1_OFM_COL, CONV_1_OFM_CH,
-  //                           CONV_1_PE, CONV_1_OUT_BIT>(
-  //     golden_out, "conv_ultranet_out.txt", 2);
+  print_mavu_stream_through<CONV_1_OFM_ROW, CONV_1_OFM_COL, CONV_1_OFM_CH,
+                            CONV_1_PE, CONV_1_OUT_BIT>(
+      golden_out, "conv_ultranet_out.txt", 1);
 
   hls::stream<ap_uint<CONV_1_OUT_BIT * CONV_1_PE_DSP6 * 2>> test_out(
       "test_out");

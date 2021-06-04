@@ -18,7 +18,7 @@
 
 void conv3x3_bn_act_DSPopt_hls_wrapper(
     stream<ap_uint<CONV_0_IN_BIT * CONV_0_INPE>> &in,
-    const ap_uint<CONV_0_SIMD_DSP6 * CONV_0_W_BIT>
+    const ap_uint<CONV_0_SIMD_DSP6 * 8>
         weights[CONV_0_PE][3][((CONV_0_IFM_CH * 3) / CONV_0_SIMD_DSP6) *
                               (CONV_0_OFM_CH / CONV_0_PE)],
     const ap_int<CONV_0_INC_BIT> inc[CONV_0_PE][CONV_0_OFM_CH / CONV_0_PE],
@@ -31,11 +31,10 @@ void conv3x3_bn_act_DSPopt_hls_wrapper(
 #pragma HLS array_partition variable = conv_0_inc dim = 1 complete
 #pragma HLS array_partition variable = conv_0_bias dim = 1 complete
   conv3x3_l0_bn_act_DSPopt<CONV_0_IFM_ROW, CONV_0_IFM_COL, CONV_0_IFM_CH,
-                           CONV_0_IN_BIT, CONV_0_OFM_CH, CONV_0_OUT_BIT,
-                           CONV_0_W_BIT, 21, CONV_0_INC_BIT, CONV_0_BIAS_BIT,
-                           CONV_0_SIMD_DSP6, 3, CONV_0_INPE, CONV_0_PE_DSP6,
-                           CONV_0_L_SHIFT>(in, conv_0_w_dspopt, conv_0_inc,
-                                           conv_0_bias, out, reps);
+                           CONV_0_IN_BIT, CONV_0_OFM_CH, CONV_0_OUT_BIT, 8, 21,
+                           CONV_0_INC_BIT, CONV_0_BIAS_BIT, CONV_0_SIMD_DSP6, 3,
+                           CONV_0_INPE, CONV_0_PE_DSP6, CONV_0_L_SHIFT - 4>(
+      in, conv_0_w_dspopt, conv_0_inc, conv_0_bias, out, reps);
 }
 void conv3x3_bn_act_hls_wrapper(
     stream<ap_uint<CONV_0_IN_BIT * CONV_0_IFM_CH>> &in,
@@ -175,15 +174,14 @@ int main(int argc, char **argv) {
   //                   CONV_0_SIMD_DSP2, CONV_0_W_BIT>(conv_0_w_dspopt,
   //                   "odepth");
 
-  // hls::stream<ap_uint<CONV_0_OUT_BIT * CONV_0_OFM_CH>>
-  // golden_out("golden_out");
+  hls::stream<ap_uint<CONV_0_OUT_BIT * CONV_0_OFM_CH>> golden_out("golden_out");
 
-  // conv3x3_bn_act_hls_wrapper(golden_in, conv_0_w, conv_0_inc, conv_0_bias,
-  //                            golden_out, 1);
+  conv3x3_bn_act_hls_wrapper(golden_in, conv_0_w, conv_0_inc, conv_0_bias,
+                             golden_out, 1);
 
-  // print_mavu_stream_through<CONV_0_OFM_ROW, CONV_0_OFM_COL, CONV_0_OFM_CH,
-  //                           CONV_0_PE, CONV_0_OUT_BIT>(
-  //     golden_out, "conv_ultranet_out.txt", 1);
+  print_mavu_stream_through<CONV_0_OFM_ROW, CONV_0_OFM_COL, CONV_0_OFM_CH,
+                            CONV_0_PE, CONV_0_OUT_BIT>(
+      golden_out, "conv_ultranet_out.txt", 1);
 
   hls::stream<ap_uint<CONV_0_OUT_BIT * CONV_0_PE_DSP6 * 2>> test_out(
       "test_out");

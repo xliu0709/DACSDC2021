@@ -176,7 +176,7 @@ void simd_mac_DSP2(ap_uint<IN_BIT> invec[SIMD], ap_int<W_BIT> w0vec[SIMD],
 #pragma HLS array_partition variable = w0vec
   ap_int<PROD_BIT * 2> acc = 0;
   for (int i = 0; i < SIMD; i++) {
-    ap_int<PROD_BIT + W_BIT> rst = w1vec[i] * (1 << PROD_BIT) + w0vec[i];
+    ap_int<PROD_BIT + W_BIT + 1> rst = w1vec[i] * (1 << PROD_BIT) + w0vec[i];
     ap_int<PROD_BIT * 2> m = invec[i] * rst;
     acc += m;
   }

@@ -4,11 +4,24 @@
 #include "param.h"
 #include <ap_int.h>
 #include <fstream>
+#include <stdio.h>
 #include <string>
 using namespace std;
 
 template <unsigned BIT, unsigned OUT_CH, unsigned PE>
-void packVec(const ap_int<BIT> vecPartition[PE][OUT_CH / PE],
+void loadVec(ap_int<BIT> vec[OUT_CH], string filename) {
+  FILE *fp = fopen(filename.c_str(), "rb");
+  int vecInt[OUT_CH];
+  fread(vecInt, sizeof(int), OUT_CH, fp);
+
+  for (unsigned i = 0; i < OUT_CH; i++) {
+    vec[i] = vecInt[i];
+  }
+  fclose(fp);
+}
+
+template <unsigned BIT_U, unsigned BIT, unsigned OUT_CH, unsigned PE>
+void packVec(const ap_int<BIT_U> vecPartition[PE][OUT_CH / PE],
              ap_int<BIT> vec[OUT_CH]) {
 
   for (int i = 0; i < OUT_CH / PE; i++)
@@ -38,18 +51,61 @@ void printVecHeader(ap_int<BIT> vec[OUT_CH], ofstream &file, string varname) {
   file << "};\n";
 }
 
-template <unsigned BIT, unsigned OUT_CH, unsigned PE1, unsigned PE2>
-void transformVecAndPrint(const ap_int<BIT> inVec[PE1][OUT_CH / PE1],
+template <unsigned BIT_U, unsigned BIT, unsigned OUT_CH, unsigned PE1,
+          unsigned PE2>
+void transformVecAndPrint(const ap_int<BIT_U> inVec[PE1][OUT_CH / PE1],
                           ofstream &file, string vectorname) {
   ap_int<BIT> vec[OUT_CH];
-  packVec<BIT, OUT_CH, PE1>(inVec, vec);
+  packVec<BIT_U, BIT, OUT_CH, PE1>(inVec, vec);
   printVecHeader<BIT, OUT_CH, PE2>(vec, file, vectorname);
+}
+
+template <unsigned K, unsigned IN_CH, unsigned OUT_CH, unsigned W_BIT_U,
+          unsigned W_BIT, unsigned PE, unsigned SIMD>
+void ultranetConv3x3WeightToWeight(
+    const ap_uint<W_BIT_U * SIMD> weightU[PE]
+                                         [K * K * OUT_CH / PE * IN_CH / SIMD],
+    ap_int<W_BIT> weight[OUT_CH][IN_CH][K][K]) {
+  for (int kr = 0; kr < K; kr++)
+    for (int kc = 0; kc < K; kc++)
+      for (int oc = 0; oc < OUT_CH; oc++) {
+        for (int ic = 0; ic < IN_CH; ic += SIMD) {
+          ap_uint<W_BIT_U * SIMD> data;
+          data = weightU[oc % PE][oc / PE * K * K * IN_CH / SIMD +
+                                  kr * K * IN_CH / SIMD + kc * IN_CH / SIMD +
+                                  ic / SIMD];
+
+          for (int s = 0; s < SIMD; s++) {
+            ap_int<W_BIT_U> w = data(W_BIT_U * (s + 1) - 1, W_BIT_U * s);
+            weight[oc][ic + s][kr][kc] = w;
+          }
+        }
+      }
+}
+
+template <unsigned IN_CH, unsigned OUT_CH, unsigned W_BIT_U, unsigned W_BIT,
+          unsigned PE, unsigned SIMD>
+void ultranetConv1x1WeightToWeight(
+    const ap_uint<W_BIT_U * SIMD> weightU[PE][OUT_CH / PE * IN_CH / SIMD],
+    ap_int<W_BIT> weight[OUT_CH][IN_CH]) {
+
+  for (int oc = 0; oc < OUT_CH; oc++) {
+    for (int ic = 0; ic < IN_CH; ic += SIMD) {
+      ap_uint<W_BIT_U * SIMD> data;
+      data = weightU[oc % PE][oc / PE * IN_CH / SIMD + ic / SIMD];
+
+      for (int s = 0; s < SIMD; s++) {
+        ap_int<W_BIT_U> w = data(W_BIT_U * (s + 1) - 1, W_BIT_U * s);
+        weight[oc][ic + s] = w;
+      }
+    }
+  }
 }
 
 template <unsigned K, unsigned IN_CH, unsigned OUT_CH, unsigned W_BIT,
           unsigned PE, unsigned SIMD>
 void weightReorderDSP6(
-    ap_int<W_BIT> weight[K][K][OUT_CH][IN_CH],
+    ap_int<W_BIT> weight[OUT_CH][IN_CH][K][K],
     ap_uint<W_BIT * SIMD> weightDSP6[PE][3][K * IN_CH / SIMD * OUT_CH / PE],
     bool first) {
   for (int kr = 0; kr < K; kr++)
@@ -60,13 +116,13 @@ void weightReorderDSP6(
           ap_uint<W_BIT * SIMD> data;
           if (first) {
             for (int s = 0; s < SIMD; s++) {
-              data(W_BIT * (s + 1) - 1, W_BIT * s) = weight[kr][kc][oc][ic + s];
+              data(W_BIT * (s + 1) - 1, W_BIT * s) = weight[oc][ic + s][kr][kc];
             }
             weightDSP6[oc % PE][kr][oc / PE * K * IN_CH / SIMD +
                                     kc * IN_CH / SIMD + ic / SIMD] = data;
           } else {
             for (int s = 0; s < SIMD; s++) {
-              data(W_BIT * (s + 1) - 1, W_BIT * s) = weight[kr][kc][oc][ic + s];
+              data(W_BIT * (s + 1) - 1, W_BIT * s) = weight[oc][ic + s][kr][kc];
             }
             weightDSP6[oc % PE][kc][oc / PE * K * IN_CH / SIMD +
                                     kr * IN_CH / SIMD + ic / SIMD] = data;
@@ -77,35 +133,9 @@ void weightReorderDSP6(
 
 template <unsigned K, unsigned IN_CH, unsigned OUT_CH, unsigned W_BIT,
           unsigned PE, unsigned SIMD>
-void weightPackDSP2(ap_int<W_BIT> weight[K][K][OUT_CH][IN_CH],
-                    ap_uint<(W_BIT * 2 + 1) * SIMD>
-                        weightDSP6[PE / 2][3][K * IN_CH / SIMD * OUT_CH / PE],
-                    bool first) {
-  const unsigned WPACK_BIT = W_BIT * 2 + 1;
-  for (int kr = 0; kr < K; kr++)
-    for (int kc = 0; kc < K; kc++)
-      for (int oc = 0; oc < OUT_CH; oc += PE) {
-        for (int ic = 0; ic < IN_CH; ic += SIMD) {
-          for (int pp = 0; pp < PE; pp += 2) {
-            ap_uint<(W_BIT * 2 + 1) * SIMD> data;
-            for (int s = 0; s < SIMD; s++) {
-              ap_int<W_BIT> w0 = weight[kr][kc][oc + pp][ic + s];
-              ap_int<W_BIT> w1 = weight[kr][kc][oc + pp + 1][ic + s];
-              ap_int<WPACK_BIT> wpack = w1 * (1 << W_BIT) + w0;
-              data(WPACK_BIT * (s + 1) - 1, WPACK_BIT * s) = wpack;
-            }
-            weightDSP6[pp / 2][kc][oc / PE * K * IN_CH / SIMD +
-                                   kr * IN_CH / SIMD + ic / SIMD] = data;
-          }
-        }
-      }
-}
-
-template <unsigned K, unsigned IN_CH, unsigned OUT_CH, unsigned W_BIT,
-          unsigned PE, unsigned SIMD>
-void weightPackDSP6(ap_int<W_BIT> weight[K][K][OUT_CH][IN_CH],
-                    ap_uint<(W_BIT * 3 + 2) * SIMD>
-                        weightDSP6[PE][K * IN_CH / SIMD * OUT_CH / PE]) {
+void weight3x3PackDSP6(ap_int<W_BIT> weight[OUT_CH][IN_CH][K][K],
+                       ap_uint<(W_BIT * 3 + 2) * SIMD>
+                           weightDSP6[PE][K * IN_CH / SIMD * OUT_CH / PE]) {
   const unsigned WPACK_BIT = W_BIT * 3 + 2;
   for (int kr = 0; kr < K; kr++)
     for (int kc = 0; kc < K; kc++)
@@ -114,15 +144,42 @@ void weightPackDSP6(ap_int<W_BIT> weight[K][K][OUT_CH][IN_CH],
           for (int pp = 0; pp < PE; pp++) {
             ap_uint<WPACK_BIT * SIMD> data;
             for (int s = 0; s < SIMD; s++) {
-              ap_int<W_BIT> w0 = weight[kr][0][oc + pp][ic + s];
-              ap_int<W_BIT> w1 = weight[kr][1][oc + pp][ic + s];
-              ap_int<W_BIT> w2 = weight[kr][2][oc + pp][ic + s];
+              ap_int<W_BIT> w0 = weight[oc + pp][ic + s][kr][0];
+              ap_int<W_BIT> w1 = weight[oc + pp][ic + s][kr][1];
+              ap_int<W_BIT> w2 = weight[oc + pp][ic + s][kr][2];
 
               ap_int<WPACK_BIT> wpack =
                   w0 * (1 << (W_BIT * 2 + 1)) + w1 * (1 << W_BIT) + w2;
               data(WPACK_BIT * (s + 1) - 1, WPACK_BIT * s) = wpack;
             }
-            weightDSP6[pp / 2][kc][oc / PE * K * IN_CH / SIMD +
+            weightDSP6[pp][oc / PE * K * IN_CH / SIMD + kr * IN_CH / SIMD +
+                           ic / SIMD] = data;
+          }
+        }
+      }
+}
+
+template <unsigned K, unsigned IN_CH, unsigned OUT_CH, unsigned W_BIT,
+          unsigned PE, unsigned SIMD>
+void weight3x3PackDSP2(
+    ap_int<W_BIT> weight[OUT_CH][IN_CH][K][K],
+    ap_uint<(W_BIT * 2 + 1) * SIMD> weightDSP2[PE / 2][3]
+                                              [K * IN_CH / SIMD * OUT_CH / PE],
+    bool first) {
+  const unsigned WPACK_BIT = W_BIT * 2 + 1;
+  for (int kr = 0; kr < K; kr++)
+    for (int kc = 0; kc < K; kc++)
+      for (int oc = 0; oc < OUT_CH; oc += PE) {
+        for (int ic = 0; ic < IN_CH; ic += SIMD) {
+          for (int pp = 0; pp < PE; pp += 2) {
+            ap_uint<(W_BIT * 2 + 1) * SIMD> data;
+            for (int s = 0; s < SIMD; s++) {
+              ap_int<W_BIT> w0 = weight[oc + pp][ic + s][kr][kc];
+              ap_int<W_BIT> w1 = weight[oc + pp + 1][ic + s][kr][kc];
+              ap_int<WPACK_BIT> wpack = w1 * (1 << W_BIT) + w0;
+              data(WPACK_BIT * (s + 1) - 1, WPACK_BIT * s) = wpack;
+            }
+            weightDSP2[pp / 2][kc][oc / PE * K * IN_CH / SIMD +
                                    kr * IN_CH / SIMD + ic / SIMD] = data;
           }
         }
@@ -131,38 +188,47 @@ void weightPackDSP6(ap_int<W_BIT> weight[K][K][OUT_CH][IN_CH],
 
 template <unsigned K, unsigned IN_CH, unsigned OUT_CH, unsigned W_BIT,
           unsigned PE, unsigned SIMD>
-void ultranetConv3x3WeightToWeight(
-    const ap_uint<W_BIT * SIMD> weightU[PE][K * K * OUT_CH / PE * IN_CH / SIMD],
-    ap_int<W_BIT> weight[K][K][OUT_CH][IN_CH]) {
+void printWeight3x3PackDSP2(ap_uint<(W_BIT * 3 + 2) * SIMD>
+                                weightDSP6[PE][K * IN_CH / SIMD * OUT_CH / PE],
+                            ofstream of, string varName) {
+  const unsigned WPACK_BIT = W_BIT * 2 + 1;
   for (int kr = 0; kr < K; kr++)
     for (int kc = 0; kc < K; kc++)
-      for (int oc = 0; oc < OUT_CH; oc++) {
+      for (int oc = 0; oc < OUT_CH; oc += PE) {
         for (int ic = 0; ic < IN_CH; ic += SIMD) {
-          ap_uint<W_BIT * SIMD> data;
-          data = weightU[oc % PE][oc / PE * K * K * IN_CH / SIMD +
-                                  kr * K * IN_CH / SIMD + kc * IN_CH / SIMD +
-                                  ic / SIMD];
-
-          for (int s = 0; s < SIMD; s++) {
-            weight[kr][kc][oc][ic + s] = data(W_BIT * (s + 1) - 1, W_BIT * s);
+          for (int pp = 0; pp < PE; pp += 2) {
+            ap_uint<(W_BIT * 2 + 1) * SIMD> data;
+            for (int s = 0; s < SIMD; s++) {
+              ap_int<W_BIT> w0 = weight[oc + pp][ic + s][kr][kc];
+              ap_int<W_BIT> w1 = weight[oc + pp + 1][ic + s][kr][kc];
+              ap_int<WPACK_BIT> wpack = w1 * (1 << W_BIT) + w0;
+              data(WPACK_BIT * (s + 1) - 1, WPACK_BIT * s) = wpack;
+            }
+            weightDSP2[pp / 2][kc][oc / PE * K * IN_CH / SIMD +
+                                   kr * IN_CH / SIMD + ic / SIMD] = data;
           }
         }
       }
 }
 
-template <unsigned IN_CH, unsigned OUT_CH, unsigned W_BIT, unsigned PE,
-          unsigned SIMD>
-void ultranetConv1x1WeightToWeight(
-    const ap_uint<W_BIT * SIMD> weightU[PE][OUT_CH / PE * IN_CH / SIMD],
-    ap_int<W_BIT> weight[OUT_CH][IN_CH]) {
-
-  for (int oc = 0; oc < OUT_CH; oc++) {
+template <unsigned K, unsigned IN_CH, unsigned OUT_CH, unsigned W_BIT,
+          unsigned PE, unsigned SIMD>
+void weight1x1PackDSP2(ap_int<W_BIT> weight[OUT_CH][IN_CH],
+                       ap_uint<(W_BIT * 2 + 1) * SIMD>
+                           weightDSP2[PE / 2][IN_CH / SIMD * OUT_CH / PE],
+                       bool first) {
+  const unsigned WPACK_BIT = W_BIT * 2 + 1;
+  for (int oc = 0; oc < OUT_CH; oc += PE) {
     for (int ic = 0; ic < IN_CH; ic += SIMD) {
-      ap_uint<W_BIT * SIMD> data;
-      data = weightU[oc % PE][oc / PE * IN_CH / SIMD + ic / SIMD];
-
-      for (int s = 0; s < SIMD; s++) {
-        weight[oc][ic + s] = data(W_BIT * (s + 1) - 1, W_BIT * s);
+      for (int pp = 0; pp < PE; pp += 2) {
+        ap_uint<(W_BIT * 2 + 1) * SIMD> data;
+        for (int s = 0; s < SIMD; s++) {
+          ap_int<W_BIT> w0 = weight[oc + pp][ic + s];
+          ap_int<W_BIT> w1 = weight[oc + pp + 1][ic + s];
+          ap_int<WPACK_BIT> wpack = w1 * (1 << W_BIT) + w0;
+          data(WPACK_BIT * (s + 1) - 1, WPACK_BIT * s) = wpack;
+        }
+        weightDSP2[pp / 2][oc / PE * IN_CH / SIMD + ic / SIMD] = data;
       }
     }
   }
@@ -234,18 +300,19 @@ void printConv3x3Header(
 }
 
 template <unsigned K, unsigned IN_CH, unsigned OUT_CH, unsigned USIMD,
-          unsigned UPE, unsigned DSP6SIMD, unsigned DSP6PE, unsigned W_BIT>
+          unsigned UPE, unsigned DSP6SIMD, unsigned DSP6PE, unsigned W_BIT_U,
+          unsigned W_BIT>
 void transformConv3x3Print(
-    const ap_uint<W_BIT * USIMD> weightU[UPE]
-                                        [K * K * OUT_CH / UPE * IN_CH / USIMD],
+    const ap_uint<W_BIT_U * USIMD>
+        weightU[UPE][K * K * OUT_CH / UPE * IN_CH / USIMD],
     string weight_name, ofstream &of, bool first = false) {
 
   ap_uint<W_BIT * DSP6SIMD> weightDSP6[DSP6PE][K]
                                       [K * OUT_CH / DSP6PE * IN_CH / DSP6SIMD];
 
-  ap_int<W_BIT> weight[K][K][OUT_CH][IN_CH];
-  ultranetConv3x3WeightToWeight<K, IN_CH, OUT_CH, W_BIT, UPE, USIMD>(weightU,
-                                                                     weight);
+  ap_int<W_BIT> weight[OUT_CH][IN_CH][K][K];
+  ultranetConv3x3WeightToWeight<K, IN_CH, OUT_CH, W_BIT_U, W_BIT, UPE, USIMD>(
+      weightU, weight);
 
   weightReorderDSP6<K, IN_CH, OUT_CH, W_BIT, DSP6PE, DSP6SIMD>(
       weight, weightDSP6, first);
@@ -256,14 +323,14 @@ void transformConv3x3Print(
 }
 
 template <unsigned IN_CH, unsigned OUT_CH, unsigned USIMD, unsigned UPE,
-          unsigned DSP2SIMD, unsigned DSP2PE, unsigned W_BIT>
+          unsigned DSP2SIMD, unsigned DSP2PE, unsigned W_BIT_U, unsigned W_BIT>
 void transformConv1x1Print(
-    const ap_uint<W_BIT * USIMD> weightU[UPE][OUT_CH / UPE * IN_CH / USIMD],
+    const ap_uint<W_BIT_U * USIMD> weightU[UPE][OUT_CH / UPE * IN_CH / USIMD],
     string weight_name, ofstream &of) {
 
   ap_int<W_BIT> weight[OUT_CH][IN_CH];
-  ultranetConv1x1WeightToWeight<IN_CH, OUT_CH, W_BIT, UPE, USIMD>(weightU,
-                                                                  weight);
+  ultranetConv1x1WeightToWeight<IN_CH, OUT_CH, W_BIT_U, W_BIT, UPE, USIMD>(
+      weightU, weight);
 
   // reorder_weight<K, SIMD, PE, IN_CH, OUT_CH, W_BIT>(weights, weights3);
   printConv1x1Header<DSP2SIMD, DSP2PE, IN_CH, OUT_CH, W_BIT>(weight,
@@ -276,69 +343,85 @@ int main() {
   of << "#include <ap_int.h>\n";
   transformConv3x3Print<CONV_0_K, CONV_0_IFM_CH, CONV_0_OFM_CH, CONV_0_SIMD,
                         CONV_0_PE, CONV_0_SIMD_DSP6, CONV_0_PE_DSP6,
-                        CONV_0_W_BIT>(conv_0_w, "conv_0_w_dspopt", of, true);
-  transformVecAndPrint<CONV_0_BIAS_BIT, CONV_0_OFM_CH, CONV_0_PE,
-                       CONV_0_PE_DSP6>(conv_0_bias, of, "conv_0_bias_dspopt");
-  transformVecAndPrint<CONV_0_INC_BIT, CONV_0_OFM_CH, CONV_0_PE,
+                        CONV_0_W_BIT, 8>(conv_0_w, "conv_0_w_dspopt", of, true);
+  transformVecAndPrint<CONV_0_BIAS_BIT, CONV_0_BIAS_BIT, CONV_0_OFM_CH,
+                       CONV_0_PE, CONV_0_PE_DSP6>(conv_0_bias, of,
+                                                  "conv_0_bias_dspopt");
+  transformVecAndPrint<CONV_0_INC_BIT, CONV_0_INC_BIT, CONV_0_OFM_CH, CONV_0_PE,
                        CONV_0_PE_DSP6>(conv_0_inc, of, "conv_0_inc_dspopt");
 
   transformConv3x3Print<CONV_1_K, CONV_1_IFM_CH, CONV_1_OFM_CH, CONV_1_SIMD,
                         CONV_1_PE, CONV_1_SIMD_DSP6, CONV_1_PE_DSP6,
-                        CONV_1_W_BIT>(conv_1_w, "conv_1_w_dspopt", of);
-  transformVecAndPrint<CONV_1_BIAS_BIT, CONV_1_OFM_CH, CONV_1_PE,
-                       CONV_1_PE_DSP6>(conv_1_bias, of, "conv_1_bias_dspopt");
-  transformVecAndPrint<CONV_1_INC_BIT, CONV_1_OFM_CH, CONV_1_PE,
+                        CONV_1_W_BIT, CONV_1_W_BIT>(conv_1_w, "conv_1_w_dspopt",
+                                                    of);
+  transformVecAndPrint<CONV_1_BIAS_BIT, CONV_1_BIAS_BIT, CONV_1_OFM_CH,
+                       CONV_1_PE, CONV_1_PE_DSP6>(conv_1_bias, of,
+                                                  "conv_1_bias_dspopt");
+  transformVecAndPrint<CONV_1_INC_BIT, CONV_1_INC_BIT, CONV_1_OFM_CH, CONV_1_PE,
                        CONV_1_PE_DSP6>(conv_1_inc, of, "conv_1_inc_dspopt");
 
   transformConv3x3Print<CONV_2_K, CONV_2_IFM_CH, CONV_2_OFM_CH, CONV_2_SIMD,
                         CONV_2_PE, CONV_2_SIMD_DSP6, CONV_2_PE_DSP6,
-                        CONV_2_W_BIT>(conv_2_w, "conv_2_w_dspopt", of);
-  transformVecAndPrint<CONV_2_BIAS_BIT, CONV_2_OFM_CH, CONV_2_PE,
-                       CONV_2_PE_DSP6>(conv_2_bias, of, "conv_2_bias_dspopt");
-  transformVecAndPrint<CONV_2_INC_BIT, CONV_2_OFM_CH, CONV_2_PE,
+                        CONV_2_W_BIT, CONV_2_W_BIT>(conv_2_w, "conv_2_w_dspopt",
+                                                    of);
+  transformVecAndPrint<CONV_2_BIAS_BIT, CONV_2_BIAS_BIT, CONV_2_OFM_CH,
+                       CONV_2_PE, CONV_2_PE_DSP6>(conv_2_bias, of,
+                                                  "conv_2_bias_dspopt");
+  transformVecAndPrint<CONV_2_INC_BIT, CONV_2_INC_BIT, CONV_2_OFM_CH, CONV_2_PE,
                        CONV_2_PE_DSP6>(conv_2_inc, of, "conv_2_inc_dspopt");
 
   transformConv3x3Print<CONV_3_K, CONV_3_IFM_CH, CONV_3_OFM_CH, CONV_3_SIMD,
                         CONV_3_PE, CONV_3_SIMD_DSP6, CONV_3_PE_DSP6,
-                        CONV_3_W_BIT>(conv_3_w, "conv_3_w_dspopt", of);
-  transformVecAndPrint<CONV_3_BIAS_BIT, CONV_3_OFM_CH, CONV_3_PE,
-                       CONV_3_PE_DSP6>(conv_3_bias, of, "conv_3_bias_dspopt");
-  transformVecAndPrint<CONV_3_INC_BIT, CONV_3_OFM_CH, CONV_3_PE,
+                        CONV_3_W_BIT, CONV_3_W_BIT>(conv_3_w, "conv_3_w_dspopt",
+                                                    of);
+  transformVecAndPrint<CONV_3_BIAS_BIT, CONV_3_BIAS_BIT, CONV_3_OFM_CH,
+                       CONV_3_PE, CONV_3_PE_DSP6>(conv_3_bias, of,
+                                                  "conv_3_bias_dspopt");
+  transformVecAndPrint<CONV_3_INC_BIT, CONV_3_INC_BIT, CONV_3_OFM_CH, CONV_3_PE,
                        CONV_3_PE_DSP6>(conv_3_inc, of, "conv_3_inc_dspopt");
 
   transformConv3x3Print<CONV_4_K, CONV_4_IFM_CH, CONV_4_OFM_CH, CONV_4_SIMD,
                         CONV_4_PE, CONV_4_SIMD_DSP6, CONV_4_PE_DSP6,
-                        CONV_4_W_BIT>(conv_4_w, "conv_4_w_dspopt", of);
-  transformVecAndPrint<CONV_4_BIAS_BIT, CONV_4_OFM_CH, CONV_4_PE,
-                       CONV_4_PE_DSP6>(conv_4_bias, of, "conv_4_bias_dspopt");
-  transformVecAndPrint<CONV_4_INC_BIT, CONV_4_OFM_CH, CONV_4_PE,
+                        CONV_4_W_BIT, CONV_4_W_BIT>(conv_4_w, "conv_4_w_dspopt",
+                                                    of);
+  transformVecAndPrint<CONV_4_BIAS_BIT, CONV_4_BIAS_BIT, CONV_4_OFM_CH,
+                       CONV_4_PE, CONV_4_PE_DSP6>(conv_4_bias, of,
+                                                  "conv_4_bias_dspopt");
+  transformVecAndPrint<CONV_4_INC_BIT, CONV_4_INC_BIT, CONV_4_OFM_CH, CONV_4_PE,
                        CONV_4_PE_DSP6>(conv_4_inc, of, "conv_4_inc_dspopt");
 
   transformConv3x3Print<CONV_5_K, CONV_5_IFM_CH, CONV_5_OFM_CH, CONV_5_SIMD,
                         CONV_5_PE, CONV_5_SIMD_DSP6, CONV_5_PE_DSP6,
-                        CONV_5_W_BIT>(conv_5_w, "conv_5_w_dspopt", of);
-  transformVecAndPrint<CONV_5_BIAS_BIT, CONV_5_OFM_CH, CONV_5_PE,
-                       CONV_5_PE_DSP6>(conv_5_bias, of, "conv_5_bias_dspopt");
-  transformVecAndPrint<CONV_5_INC_BIT, CONV_5_OFM_CH, CONV_5_PE,
+                        CONV_5_W_BIT, CONV_5_W_BIT>(conv_5_w, "conv_5_w_dspopt",
+                                                    of);
+  transformVecAndPrint<CONV_5_BIAS_BIT, CONV_5_BIAS_BIT, CONV_5_OFM_CH,
+                       CONV_5_PE, CONV_5_PE_DSP6>(conv_5_bias, of,
+                                                  "conv_5_bias_dspopt");
+  transformVecAndPrint<CONV_5_INC_BIT, CONV_5_INC_BIT, CONV_5_OFM_CH, CONV_5_PE,
                        CONV_5_PE_DSP6>(conv_5_inc, of, "conv_5_inc_dspopt");
 
   transformConv3x3Print<CONV_6_K, CONV_6_IFM_CH, CONV_6_OFM_CH, CONV_6_SIMD,
                         CONV_6_PE, CONV_6_SIMD_DSP6, CONV_6_PE_DSP6,
-                        CONV_6_W_BIT>(conv_6_w, "conv_6_w_dspopt", of);
-  transformVecAndPrint<CONV_6_BIAS_BIT, CONV_6_OFM_CH, CONV_6_PE,
-                       CONV_6_PE_DSP6>(conv_6_bias, of, "conv_6_bias_dspopt");
-  transformVecAndPrint<CONV_6_INC_BIT, CONV_6_OFM_CH, CONV_6_PE,
+                        CONV_6_W_BIT, CONV_6_W_BIT>(conv_6_w, "conv_6_w_dspopt",
+                                                    of);
+  transformVecAndPrint<CONV_6_BIAS_BIT, CONV_6_BIAS_BIT, CONV_6_OFM_CH,
+                       CONV_6_PE, CONV_6_PE_DSP6>(conv_6_bias, of,
+                                                  "conv_6_bias_dspopt");
+  transformVecAndPrint<CONV_6_INC_BIT, CONV_6_INC_BIT, CONV_6_OFM_CH, CONV_6_PE,
                        CONV_6_PE_DSP6>(conv_6_inc, of, "conv_6_inc_dspopt");
 
   transformConv3x3Print<CONV_7_K, CONV_7_IFM_CH, CONV_7_OFM_CH, CONV_7_SIMD,
                         CONV_7_PE, CONV_7_SIMD_DSP6, CONV_7_PE_DSP6,
-                        CONV_7_W_BIT>(conv_7_w, "conv_7_w_dspopt", of);
-  transformVecAndPrint<CONV_7_BIAS_BIT, CONV_7_OFM_CH, CONV_7_PE,
-                       CONV_7_PE_DSP6>(conv_7_bias, of, "conv_7_bias_dspopt");
-  transformVecAndPrint<CONV_7_INC_BIT, CONV_7_OFM_CH, CONV_7_PE,
+                        CONV_7_W_BIT, CONV_7_W_BIT>(conv_7_w, "conv_7_w_dspopt",
+                                                    of);
+  transformVecAndPrint<CONV_7_BIAS_BIT, CONV_7_BIAS_BIT, CONV_7_OFM_CH,
+                       CONV_7_PE, CONV_7_PE_DSP6>(conv_7_bias, of,
+                                                  "conv_7_bias_dspopt");
+  transformVecAndPrint<CONV_7_INC_BIT, CONV_7_INC_BIT, CONV_7_OFM_CH, CONV_7_PE,
                        CONV_7_PE_DSP6>(conv_7_inc, of, "conv_7_inc_dspopt");
+
   transformConv1x1Print<CONV_8_IFM_CH, CONV_8_OFM_CH, CONV_8_SIMD, CONV_8_PE,
-                        CONV_8_SIMD_DSP2, CONV_8_PE_DSP2, CONV_8_W_BIT>(
+                        CONV_8_SIMD_DSP2, CONV_8_PE_DSP2, CONV_8_W_BIT, 8>(
       conv_8_w, "conv_8_w_dspopt", of);
   of.close();
 }

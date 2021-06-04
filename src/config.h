@@ -21,6 +21,7 @@
 #define CONV_0_INPE 3
 #define CONV_0_SIMD_DSP6 3
 #define CONV_0_PE_DSP6 16
+#define CONV_0_W_BIT 4
 
 // conv_1
 #define CONV_1_K 3
