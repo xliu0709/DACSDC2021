@@ -5,7 +5,7 @@
 ############################################################
 open_project HLS
 set_top ultra_net
-add_files src/ultranet.cpp -cflags "-std=c++11" -csimflags "-std=c++11"
+add_files ../src/ultranet.cpp -cflags "-std=c++11" -csimflags "-std=c++11"
 
 open_solution "solution1"
 set_part {xczu3eg-sbva484-1-e}
