@@ -148,6 +148,42 @@ void print_mavu_DSPopt_stream_through(hls::stream<ap_uint<BIT * PE * 2>> &out,
 }
 
 template <unsigned ROW, unsigned COL, unsigned CH, unsigned PE, unsigned BIT>
+void print_output_featuremap(ap_uint<BIT> OFM[CH][ROW][COL], string filename,
+                             unsigned reps) {
+  ofstream f(filename);
+  ap_uint<BIT * PE> buffer[CH / PE][COL];
+
+  for (int r = 0; r < ROW * reps; r++) {
+    for (int c = 0; c < COL; c++) {
+      f << "[" << setw(4) << r << "," << setw(4) << c << "]";
+      for (int ch = 0; ch < CH; ch++) {
+        f << OFM[ch][r][c].to_string(16) << ",";
+      }
+      f << endl;
+    }
+  }
+  f.close();
+}
+
+template <unsigned ROW, unsigned COL, unsigned CH, unsigned PE, unsigned BIT>
+void print_output_featuremap_signed(ap_int<BIT> OFM[CH][ROW][COL],
+                                    string filename, unsigned reps) {
+  ofstream f(filename);
+  ap_uint<BIT * PE> buffer[CH / PE][COL];
+
+  for (int r = 0; r < ROW * reps; r++) {
+    for (int c = 0; c < COL; c++) {
+      f << "[" << setw(4) << r << "," << setw(4) << c << "]";
+      for (int ch = 0; ch < CH; ch++) {
+        f << OFM[ch][r][c].to_string(10) << ",";
+      }
+      f << endl;
+    }
+  }
+  f.close();
+}
+
+template <unsigned ROW, unsigned COL, unsigned CH, unsigned PE, unsigned BIT>
 void print_mavu_stream_through(hls::stream<ap_uint<BIT * CH>> &out,
                                string filename, unsigned reps) {
   ofstream f(filename);
@@ -188,5 +224,51 @@ void print_pe_stream_through(hls::stream<ap_uint<BIT * PE>> &out,
     }
   }
   f.close();
+}
+
+template <unsigned ROW, unsigned COL, unsigned CH, unsigned BIT>
+void load_featuremap(string filename, ap_uint<BIT> IFM[CH][ROW][COL],
+                     float factor) {
+  float *IFM_float = new float[ROW * COL * CH];
+
+  FILE *fp = fopen(filename.c_str(), "rb");
+
+  size_t ret = fread(IFM_float, sizeof(float), ROW * COL * CH, fp);
+  assert(ret == ROW * COL * CH);
+
+  for (int ch = 0; ch < CH; ch++)
+    for (int r = 0; r < ROW; r++) {
+      for (int c = 0; c < COL; c++) {
+
+        float rst = round(IFM_float[ch * ROW * COL + r * COL + c] * factor);
+        assert(rst <= factor && rst >= 0);
+        IFM[ch][r][c] = rst;
+      }
+    }
+  delete[] IFM_float;
+  fclose(fp);
+}
+
+template <unsigned ROW, unsigned COL, unsigned CH, unsigned BIT>
+void load_featuremap_signed(string filename, ap_int<BIT> IFM[CH][ROW][COL],
+                            float factor) {
+  float *IFM_float = new float[ROW * COL * CH];
+
+  FILE *fp = fopen(filename.c_str(), "rb");
+
+  size_t ret = fread(IFM_float, sizeof(float), ROW * COL * CH, fp);
+  assert(ret == ROW * COL * CH);
+
+  for (int ch = 0; ch < CH; ch++)
+    for (int r = 0; r < ROW; r++) {
+      for (int c = 0; c < COL; c++) {
+
+        float rst = round(IFM_float[ch * ROW * COL + r * COL + c] * factor);
+        // assert(rst <= factor && rst >= 0);
+        IFM[ch][r][c] = rst;
+      }
+    }
+  delete[] IFM_float;
+  fclose(fp);
 }
 #endif

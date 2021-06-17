@@ -10,7 +10,7 @@ CFLAGS 		+= -g
 # CFLAGS		+= -O3
 
 genweight:
-	$(CXX) $(CFLAGS) $(CINCLUDES) src/gen_weight.cpp -o genweight.out 
+	$(CXX) $(CFLAGS) $(CINCLUDES) sw_scripts/src/gen_weight.cpp -o genweight.out 
 
 
 ultranet: 

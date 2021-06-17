@@ -21,7 +21,6 @@
 #define CONV_0_INPE 3
 #define CONV_0_SIMD_DSP6 3
 #define CONV_0_PE_DSP6 16
-#define CONV_0_W_BIT 4
 
 // conv_1
 #define CONV_1_K 3
@@ -70,6 +69,7 @@
 #define CONV_2_INPE 4
 #define CONV_2_SIMD_DSP6 8
 #define CONV_2_PE_DSP6 8
+
 // conv_3
 #define CONV_3_K 3
 #define CONV_3_S 1
@@ -209,3 +209,21 @@
 #define CONV_8_INPE 2
 #define CONV_8_SIMD_DSP2 4
 #define CONV_8_PE_DSP2 2
+
+#define CONV_0_INC_BIT_NEW 14
+#define CONV_1_INC_BIT_NEW 12
+#define CONV_2_INC_BIT_NEW 12
+#define CONV_3_INC_BIT_NEW 11
+#define CONV_4_INC_BIT_NEW 12
+#define CONV_5_INC_BIT_NEW 11
+#define CONV_6_INC_BIT_NEW 12
+#define CONV_7_INC_BIT_NEW 13
+#define CONV_0_BIAS_BIT_NEW 27
+#define CONV_1_BIAS_BIT_NEW 21
+#define CONV_2_BIAS_BIT_NEW 22
+#define CONV_3_BIAS_BIT_NEW 20
+#define CONV_4_BIAS_BIT_NEW 20
+#define CONV_5_BIAS_BIT_NEW 21
+#define CONV_6_BIAS_BIT_NEW 20
+#define CONV_7_BIAS_BIT_NEW 22
+#define CONV_8_BIAS_BIT_NEW 9

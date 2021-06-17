@@ -188,14 +188,18 @@ void simd_mac_DSP2(ap_uint<IN_BIT> invec[SIMD], ap_int<W_BIT> w0vec[SIMD],
 template <unsigned OUT_ROW, unsigned OUT_COL, unsigned OUT_CH, unsigned IN_BIT,
           unsigned IN_CH,
 
-          unsigned W_BIT, unsigned M_BIT,
+          unsigned W_BIT, unsigned B_BIT, unsigned M_BIT,
 
           unsigned SIMD, unsigned PE>
 void conv1x1DSP2(stream<ap_uint<IN_BIT * SIMD>> &in,
                  const ap_uint<SIMD * W_BIT>
                      weights[PE][((IN_CH * 1) / SIMD) * (OUT_CH / PE)],
+                 const ap_int<B_BIT> bias[PE][OUT_CH / PE],
                  stream<ap_uint<PE * M_BIT>> &out, const unsigned reps = 1) {
   const unsigned PROD_BIT = IN_BIT + W_BIT + 2;
+
+#pragma HLS ARRAY_PARTITION variable = bias complete dim = 1
+
   ap_int<W_BIT> wvec[PE][SIMD];
 #pragma HLS ARRAY_PARTITION variable = wvec complete dim = 1
 #pragma HLS ARRAY_PARTITION variable = wvec complete dim = 2
@@ -239,7 +243,8 @@ void conv1x1DSP2(stream<ap_uint<IN_BIT * SIMD>> &in,
           ap_uint<M_BIT * PE> odata;
           if (simdIdx == IN_CH / SIMD - 1) {
             for (int i = 0; i < PE; i++) {
-              odata((i + 1) * M_BIT - 1, i * M_BIT) = outPartialArr[i];
+              odata((i + 1) * M_BIT - 1, i * M_BIT) =
+                  outPartialArr[i] + bias[i][peIdx];
             }
             out.write(odata);
           }
@@ -249,11 +254,12 @@ void conv1x1DSP2(stream<ap_uint<IN_BIT * SIMD>> &in,
 }
 
 template <unsigned IN_ROW, unsigned IN_COL, unsigned IN_CH, unsigned IN_BIT,
-          unsigned OUT_CH, unsigned W_BIT, unsigned M_BIT, unsigned SIMD,
-          unsigned PE, unsigned INPE>
+          unsigned OUT_CH, unsigned W_BIT, unsigned B_BIT, unsigned M_BIT,
+          unsigned SIMD, unsigned PE, unsigned INPE>
 void conv1x1_DSPopt(stream<ap_uint<IN_BIT * INPE * 2>> &in,
                     const ap_uint<SIMD * W_BIT>
                         weights[PE][((IN_CH * 1) / SIMD) * (OUT_CH / PE)],
+                    const ap_int<B_BIT> bias[PE][OUT_CH / PE],
                     stream<ap_uint<PE * M_BIT>> &out, const unsigned reps = 1) {
 #pragma HLS DATAFLOW
   hls::stream<ap_uint<IN_BIT * SIMD>> conv1in("conv1in");
@@ -263,8 +269,9 @@ void conv1x1_DSPopt(stream<ap_uint<IN_BIT * INPE * 2>> &in,
   // print_conv1x1_through<IN_ROW, IN_COL, IN_CH, OUT_CH / PE, IN_BIT, SIMD>(
   //     conv1in, "convert.txt");
   // hls::stream<ap_uint<M_BIT * PE>> conv1out("conv1out");
-  conv1x1DSP2<IN_ROW, IN_COL, OUT_CH, IN_BIT, IN_CH, W_BIT, M_BIT, SIMD, PE>(
-      conv1in, weights, out, reps);
+
+  conv1x1DSP2<IN_ROW, IN_COL, OUT_CH, IN_BIT, IN_CH, W_BIT, B_BIT, M_BIT, SIMD,
+              PE>(conv1in, weights, bias, out, reps);
   // reorderChannelPE<IN_ROW, IN_COL, OUT_CH, PE, M_BIT>(conv1out, out, reps);
 }
 

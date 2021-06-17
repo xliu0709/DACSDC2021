@@ -6,6 +6,7 @@
 #include "debug.hpp"
 #include "param.h"
 #include "weight3.hpp"
+#include "weights.hpp"
 #include <ap_int.h>
 #include <hls_stream.h>
 #include <hls_video.h>
@@ -24,8 +25,9 @@ void conv1x1_dsp2_hls_wrapper(
 #pragma HLS array_partition variable = conv_8_w dim = 2 complete
 
   conv1x1_DSPopt<CONV_8_IFM_ROW, CONV_8_IFM_COL, CONV_8_IFM_CH, CONV_8_IN_BIT,
-                 CONV_8_OFM_CH, 8, 32, CONV_8_SIMD_DSP2, CONV_8_PE_DSP2,
-                 CONV_8_INPE>(in, conv_8_w_dspopt, out, reps);
+                 CONV_8_OFM_CH, CONV_8_W_BIT, CONV_8_BIAS_BIT_NEW, 32,
+                 CONV_8_SIMD_DSP2, CONV_8_PE_DSP2, CONV_8_INPE>(
+      in, conv_8_w_new, conv_8_bias_new, out, reps);
 }
 
 void conv1x1_hls_wrapper(stream<ap_uint<CONV_8_IN_BIT * CONV_8_SIMD>> &in,
@@ -95,13 +97,16 @@ int main(int argc, char **argv) {
   hls::stream<ap_uint<CONV_8_IN_BIT * CONV_8_INPE * 2>> test_in("test_in");
 
   ap_uint<CONV_8_IN_BIT> IFM[CONV_8_IFM_CH][CONV_8_IFM_ROW][CONV_8_IFM_COL];
-  for (int i = 0; i < CONV_8_IFM_CH; i++) {
-    for (int r = 0; r < CONV_8_IFM_ROW; r++)
-      for (int c = 0; c < CONV_8_IFM_COL; c++) {
+  // for (int i = 0; i < CONV_8_IFM_CH; i++) {
+  //   for (int r = 0; r < CONV_8_IFM_ROW; r++)
+  //     for (int c = 0; c < CONV_8_IFM_COL; c++) {
 
-        IFM[i][r][c] = random();
-      }
-  }
+  //       IFM[i][r][c] = random();
+  //     }
+  // }
+
+  load_featuremap<CONV_8_IFM_ROW, CONV_8_IFM_COL, CONV_8_IFM_CH, CONV_8_IN_BIT>(
+      "data/featuremap/conv8_in.bin", IFM, 15);
 
   for (int r = 0; r < CONV_8_IFM_ROW; r++) {
     for (int i = 0; i < CONV_8_IFM_CH; i += CONV_8_INPE) {
@@ -163,13 +168,13 @@ int main(int argc, char **argv) {
 
   int reps = 1;
 
-  hls::stream<ap_uint<32 * CONV_8_PE>> golden_out("golden_out");
+  // hls::stream<ap_uint<32 * CONV_8_PE>> golden_out("golden_out");
 
-  conv1x1_hls_wrapper(golden_in, golden_out, reps);
+  // conv1x1_hls_wrapper(golden_in, golden_out, reps);
 
-  print_pe_stream_through<CONV_8_OFM_ROW, CONV_8_OFM_COL, CONV_8_OFM_CH,
-                          CONV_8_PE, 32>(golden_out, "conv_ultranet_out.txt",
-                                         reps);
+  // print_pe_stream_through<CONV_8_OFM_ROW, CONV_8_OFM_COL, CONV_8_OFM_CH,
+  //                         CONV_8_PE, 32>(golden_out, "conv_ultranet_out.txt",
+  //                                        reps);
 
   hls::stream<ap_uint<32 * CONV_8_PE_DSP2>> test_out("test_out");
 
@@ -177,4 +182,13 @@ int main(int argc, char **argv) {
 
   print_pe_stream_through<CONV_8_OFM_ROW, CONV_8_OFM_COL, CONV_8_OFM_CH,
                           CONV_8_PE, 32>(test_out, "conv_DSP2_out.txt", reps);
+
+  ap_int<32> OFM[CONV_8_OFM_CH][CONV_8_OFM_ROW][CONV_8_OFM_COL];
+
+  load_featuremap_signed<CONV_8_OFM_ROW, CONV_8_OFM_COL, CONV_8_OFM_CH, 32>(
+      "data/featuremap/conv8_out.bin", OFM, 15 * 7);
+
+  print_output_featuremap_signed<CONV_8_OFM_ROW, CONV_8_OFM_COL, CONV_8_OFM_CH,
+                                 CONV_8_PE_DSP2, 32>(OFM, "conv_gold_out.txt",
+                                                     1);
 }

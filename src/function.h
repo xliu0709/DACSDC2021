@@ -184,7 +184,7 @@ ap_uint<OUT_BIT> bn_qurelu_fixed(ap_int<IN_BIT> in, ap_int<INC_BIT> inc,
 
   const unsigned D = 1 << (W_BIT - 1 + DATA_BIT + L_SHIFT);
 
-  ap_int<IN_BIT + INC_BIT> bn_res = in * inc + bias;
+  ap_int<IN_BIT + INC_BIT + 1> bn_res = in * inc + bias;
   ap_uint<OUT_BIT> res;
 
   if (bn_res > 0) {

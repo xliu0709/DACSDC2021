@@ -452,9 +452,8 @@ void convDSPOpt(
             // ap_uint<PE * M_BIT> out_buf0;
             // ap_uint<PE * M_BIT> out_buf1;
             for (int p = 0; p < PE; p++) {
-              // out_buf0(p * M_BIT + M_BIT - 1, p * M_BIT) =
-              // outPartialArr0[p]; out_buf1(p * M_BIT + M_BIT - 1, p * M_BIT)
-              // = outPartialArr1[p];
+              // out_buf0(p * M_BIT + M_BIT - 1, p * M_BIT) = outPartialArr0[p];
+              // out_buf1(p * M_BIT + M_BIT - 1, p * M_BIT) = outPartialArr1[p];
               oData0((p + 1) * OUT_BIT - 1, p * OUT_BIT) =
                   bn_qurelu_fixed<M_BIT, OUT_BIT, INC_BIT, BIAS_BIT, IN_BIT,
                                   W_BIT, L_SHIFT>(
@@ -465,7 +464,7 @@ void convDSPOpt(
                       outPartialArr1[p], inc[p][peIdx], bias[p][peIdx]);
             }
             out.write((oData1, oData0));
-            // weightAddr = 0;
+            // out.write((out_buf1, out_buf0));
           }
         }
       }
