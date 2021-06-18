@@ -5,7 +5,7 @@
 #include <hls_stream.h>
 using namespace hls;
 
-#include "debug.hpp"
+// #include "debug.hpp"
 #include "function.h"
 #include "matrix_vector_unit.h"
 #include "sliding_window_unit.h"

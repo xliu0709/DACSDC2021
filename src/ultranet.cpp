@@ -1,12 +1,11 @@
 // #define DEBUG
 
 #ifdef DEBUG
+
+#endif
 #include <fstream>
 #include <iostream>
 using namespace std;
-
-#endif
-
 #include "bn_qrelu2d.h"
 #include "config.h"
 #include "conv1x1DSP2.hpp"
@@ -418,6 +417,7 @@ int main(int argc, char const *argv[]) {
 
   hls::stream<my_ap_axis> input_stream("input stream");
   hls::stream<my_ap_axis> input_stream_test("input stream_test");
+
   for (unsigned int i = 0; i < nums_line_pre_img; i++) {
     my_ap_axis temp;
     for (unsigned int j = 0; j < data_points_per_line; j++) {
