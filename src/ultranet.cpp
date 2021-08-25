@@ -124,7 +124,7 @@ void do_compute2(stream<my_ap_axis> &in, stream<my_ap_axis> &out,
 #pragma HLS STREAM variable = conv_0_out depth = 128 dim = 1
   conv3x3_l0_bn_act_DSPopt<CONV_0_IFM_ROW, CONV_0_IFM_COL, CONV_0_IFM_CH,
                            CONV_0_IN_BIT, CONV_0_OFM_CH, CONV_0_OUT_BIT,
-                           CONV_0_W_BIT, 21, CONV_0_INC_BIT_NEW,
+                           CONV_0_W_BIT, 26, CONV_0_INC_BIT_NEW,
                            CONV_0_BIAS_BIT_NEW, CONV_0_SIMD_DSP6, 3,
                            CONV_0_INPE, CONV_0_PE_DSP6, CONV_0_L_SHIFT>(
       in_stream2, conv_0_w_new, conv_0_inc_new, conv_0_bias_new, conv_0_out,

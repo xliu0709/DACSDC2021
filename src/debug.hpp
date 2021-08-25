@@ -35,12 +35,12 @@ void print_FM_stream_through(hls::stream<ap_uint<OUT_BIT * OUT_CH>> &out,
 
   for (int r = 0; r < OUT_ROW; r++)
     for (int c = 0; c < OUT_COL; c++) {
-      f << '[' << setw(3) << r << "," << setw(3) << c << "]";
+      f << '[' << setw(4) << r << "," << setw(4) << c << "]";
       ap_uint<OUT_BIT *OUT_CH> data = out.read();
       out.write(data);
-      for (int d = 0; d < OUT_CH * OUT_BIT / 8; d++) {
-        ap_uint<8> wdata = data(d * 8 + 7, d * 8);
-        f << setw(4) << wdata;
+      for (int d = 0; d < OUT_CH; d++) {
+        ap_uint<OUT_BIT> wdata = data(d * OUT_BIT + OUT_BIT - 1, d * OUT_BIT);
+        f << wdata << ",";
       }
       f << endl;
     }
@@ -241,7 +241,7 @@ void load_featuremap(string filename, ap_uint<BIT> IFM[CH][ROW][COL],
       for (int c = 0; c < COL; c++) {
 
         float rst = round(IFM_float[ch * ROW * COL + r * COL + c] * factor);
-        assert(rst <= factor && rst >= 0);
+        // assert(rst <= factor && rst >= 0);
         IFM[ch][r][c] = rst;
       }
     }

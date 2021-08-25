@@ -28,7 +28,7 @@ void conv3x3_bn_act_DSPopt_hls_wrapper(
 #pragma HLS array_partition variable = conv_0_bias dim = 1 complete
   conv3x3_l0_bn_act_DSPopt<CONV_0_IFM_ROW, CONV_0_IFM_COL, CONV_0_IFM_CH,
                            CONV_0_IN_BIT, CONV_0_OFM_CH, CONV_0_OUT_BIT,
-                           CONV_0_W_BIT, 21, CONV_0_INC_BIT_NEW,
+                           CONV_0_W_BIT, 26, CONV_0_INC_BIT_NEW,
                            CONV_0_BIAS_BIT_NEW, CONV_0_SIMD_DSP6, 3,
                            CONV_0_INPE, CONV_0_PE_DSP6, CONV_0_L_SHIFT>(
       in, conv_0_w_new, conv_0_inc_new, conv_0_bias_new, out, reps);

@@ -30,16 +30,19 @@ void conv1x1_dsp2_hls_wrapper(
       in, conv_8_w_new, conv_8_bias_new, out, reps);
 }
 
-void conv1x1_hls_wrapper(stream<ap_uint<CONV_8_IN_BIT * CONV_8_SIMD>> &in,
-                         stream<ap_uint<32 * CONV_8_PE>> &out, unsigned reps) {
+// void conv1x1_hls_wrapper(stream<ap_uint<CONV_8_IN_BIT * CONV_8_SIMD>> &in,
+//                          stream<ap_uint<32 * CONV_8_PE>> &out, unsigned reps)
+//                          {
 
-#pragma HLS array_partition variable = conv_8_w dim = 1 complete
-#pragma HLS array_partition variable = conv_8_w dim = 2 complete
+// #pragma HLS array_partition variable = conv_8_w dim = 1 complete
+// #pragma HLS array_partition variable = conv_8_w dim = 2 complete
 
-  conv1x1<CONV_8_IFM_ROW, CONV_8_IFM_COL, CONV_8_IFM_CH, CONV_8_IN_BIT,
-          CONV_8_OFM_CH, CONV_8_W_BIT, 32, CONV_8_SIMD, CONV_8_PE>(in, conv_8_w,
-                                                                   out, reps);
-}
+//   conv1x1<CONV_8_IFM_ROW, CONV_8_IFM_COL, CONV_8_IFM_CH, CONV_8_IN_BIT,
+//           CONV_8_OFM_CH, CONV_8_W_BIT, 32, CONV_8_SIMD, CONV_8_PE>(in,
+//           conv_8_w,
+//                                                                    out,
+//                                                                    reps);
+// }
 
 template <unsigned K, unsigned IN_CH, unsigned OUT_CH, unsigned PE,
           unsigned SIMD, unsigned W_BIT>
@@ -139,19 +142,19 @@ int main(int argc, char **argv) {
   //   }
   // }
 
-  for (int r = 0; r < CONV_8_IFM_ROW; r++) {
-    for (int c = 0; c < CONV_8_IFM_COL; c++) {
+  // for (int r = 0; r < CONV_8_IFM_ROW; r++) {
+  //   for (int c = 0; c < CONV_8_IFM_COL; c++) {
 
-      for (int i = 0; i < CONV_8_IFM_CH; i += CONV_8_SIMD) {
-        ap_uint<CONV_8_IN_BIT * CONV_8_SIMD> data;
-        for (int s = 0; s < CONV_8_SIMD; s++) {
-          data((s + 1) * CONV_8_IN_BIT - 1, s * CONV_8_IN_BIT) =
-              IFM[i + s][r][c];
-        }
-        golden_in << data;
-      }
-    }
-  };
+  //     for (int i = 0; i < CONV_8_IFM_CH; i += CONV_8_SIMD) {
+  //       ap_uint<CONV_8_IN_BIT * CONV_8_SIMD> data;
+  //       for (int s = 0; s < CONV_8_SIMD; s++) {
+  //         data((s + 1) * CONV_8_IN_BIT - 1, s * CONV_8_IN_BIT) =
+  //             IFM[i + s][r][c];
+  //       }
+  //       golden_in << data;
+  //     }
+  //   }
+  // };
   // for (int r = 0; r < CONV_8_IFM_ROW; r++) {
   //   for (int c = 0; c < CONV_8_IFM_COL; c++) {
 
@@ -186,7 +189,7 @@ int main(int argc, char **argv) {
   ap_int<32> OFM[CONV_8_OFM_CH][CONV_8_OFM_ROW][CONV_8_OFM_COL];
 
   load_featuremap_signed<CONV_8_OFM_ROW, CONV_8_OFM_COL, CONV_8_OFM_CH, 32>(
-      "data/featuremap/conv8_out.bin", OFM, 15 * 7);
+      "data/featuremap/conv8_out.bin", OFM, 127 * 15);
 
   print_output_featuremap_signed<CONV_8_OFM_ROW, CONV_8_OFM_COL, CONV_8_OFM_CH,
                                  CONV_8_PE_DSP2, 32>(OFM, "conv_gold_out.txt",

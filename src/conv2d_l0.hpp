@@ -194,13 +194,14 @@ void convDSPOpt_l0(stream<ap_uint<IN_BIT * 9>> &in,
                   (s % 3 + 1) * W_BIT - 1, s % 3 * W_BIT);
             }
           }
+
           // cout << "w,kc:" << w << "," << kc << endl;
 
           for (int p = 0; p < PE; p += 2) {
-            ap_int<16> outPartial0;
-            ap_int<16> outPartial1;
-            simd_mac9_DSP2<IN_BIT, W_BIT, 16>(ivec, wvec[p], wvec[p + 1],
-                                              outPartial0, outPartial1);
+            ap_int<PROD_BIT> outPartial0;
+            ap_int<PROD_BIT> outPartial1;
+            simd_mac9_DSP2<IN_BIT, W_BIT, PROD_BIT>(ivec, wvec[p], wvec[p + 1],
+                                                    outPartial0, outPartial1);
 
             // cout << outPartial0.to_string(10) << endl;
             // cout << outPartial1.to_string(10) << endl;
@@ -286,6 +287,7 @@ void conv3x3_l0_bn_act_DSPopt(
     const ap_uint<IN_CH * W_BIT> weights[PE][3][3 * (OUT_CH / PE)],
     const ap_int<INC_BIT> inc[PE][OUT_CH / PE],
     const ap_int<BIAS_BIT> bias[PE][OUT_CH / PE],
+
     stream<ap_uint<OUT_BIT * PE * 2>> &out, const unsigned reps = 1) {
 #pragma HLS DATAFLOW
 
@@ -300,7 +302,6 @@ void conv3x3_l0_bn_act_DSPopt(
   stream<ap_uint<M_BIT * PE>> conv_l0_out("conv_l0_out");
   convDSPOpt_l0<OUT_ROW, OUT_COL, OUT_CH, PE, IN_BIT, W_BIT, M_BIT, OUT_BIT>(
       padding_out, weights, conv_l0_out, reps);
-
   streamBnRelu_l0<OUT_ROW, OUT_COL, OUT_CH, M_BIT, OUT_BIT, INC_BIT, BIAS_BIT,
                   L_SHIFT, IN_BIT, W_BIT, PE>(conv_l0_out, inc, bias, out,
                                               reps);
