@@ -141,18 +141,22 @@ void *read_image_pthread(void *thread_para){
         if(pingpong)
         {
             sigwait(&set1,&sig);
-            FILE *fp = fopen(para.paths[i], "rb");
-            fread(buffer0, 1, COL_SO * ROW_SO * CH_SO, fp);
-            fclose(fp);
+//             FILE *fp = fopen(para.paths[i], "rb");
+//             fread(buffer0, 1, COL_SO * ROW_SO * CH_SO, fp);
+//             fclose(fp);
+            
+            int fd = open(para.paths[i], O_RDONLY|O_DIRECT);
+            read(fd,buffer0,COL_SO * ROW_SO * CH_SO);
+            close(fd);
             pthread_kill( decode_pthread[para.thr], SIGUSR1);
             
         }
         else
         {
             sigwait(&set2,&sig);
-            FILE *fp = fopen(para.paths[i], "rb");
-            fread(buffer1, 1, COL_SO * ROW_SO * CH_SO, fp);
-            fclose(fp);
+            int fd = open(para.paths[i], O_RDONLY|O_DIRECT);
+            read(fd,buffer1,COL_SO * ROW_SO * CH_SO);
+            close(fd);
             pthread_kill( decode_pthread[para.thr], SIGUSR2);   
         }
         pingpong=!pingpong;
@@ -234,8 +238,8 @@ void load_image_cpp(char **paths, uint8_t *matrix, int batch_size, int row, int 
         }
         node[i].paths = paths;
         node[i].matrix = matrix;
-        buffer_ping[i]=(uint8_t*) malloc(COL_SO * ROW_SO* CH_SO);
-        buffer_pong[i]=(uint8_t*) malloc(COL_SO * ROW_SO* CH_SO);
+        buffer_ping[i]=(uint8_t*) valloc(COL_SO * ROW_SO* CH_SO);
+        buffer_pong[i]=(uint8_t*) valloc(COL_SO * ROW_SO* CH_SO);
         pthread_create(&read_pthread[i], NULL, read_image_pthread, (void *)&node[i]);
         pthread_create(&decode_pthread[i], NULL, decode_image_pthread, (void *)&node[i]);
         pthread_kill( read_pthread[i], SIGUSR1);  
@@ -263,3 +267,30 @@ extern "C" {
     }
     
 }
+
+
+// int main()
+// {
+//     int batch_size = 100;
+//     uint8_t * arr = (uint8_t *) malloc(batch_size * 360 * 640 * 3);
+//     char * paths[batch_size];
+//     for (int i=0; i < batch_size; i ++) {
+//         paths[i] = "0.jpg";
+//     }
+
+//     load_image(paths, arr, batch_size, 360, 640, 3);
+//     cout << " end " << endl;
+//     // for (int i=0; i < 100; i ++) {
+//     //     Mat image = imread("0.jpg");
+//     //     int nWidth = image.cols;
+//     //     int nHeight = image.rows;
+//     //     int nBandNum = image.channels();    
+
+        
+//     //     mat_to_arr(image, arr);
+        
+//     //     cout << nWidth << "  " << nHeight << " " << nBandNum << endl;
+
+//     // }
+//     return 0;
+// }
