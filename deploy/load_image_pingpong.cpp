@@ -24,43 +24,67 @@ using namespace std;
 
 
 #define FIRSTLASTBITWIDTH 8
+#define DIV (127 * 15)
 #define GRIDROW 10
 #define GRIDCOL 20
 #define IMAGE_RAW_ROW  360
 #define IMAGE_RAW_COL  640
 #define IMAGE_ROW  160
 #define IMAGE_COL  320
+#define YOLO_THREAD_NUM 4
 
 
-#define X_SCALE   (IMAGE_RAW_COL / IMAGE_COL)
-#define Y_SCALE   (IMAGE_RAW_ROW / IMAGE_ROW)
 
+constexpr float xy_xscale=float(16*IMAGE_RAW_COL)/IMAGE_COL;
+constexpr float xy_yscale=float(16*IMAGE_RAW_ROW)/IMAGE_ROW;
+constexpr float wh_xscale=float(20*IMAGE_RAW_COL)/(6*IMAGE_COL);
+constexpr float wh_yscale=float(20*IMAGE_RAW_ROW)/(6*IMAGE_ROW);
+constexpr int vecoffset=GRIDCOL*GRIDROW*36;
+
+int32_t* global_vec;
+int32_t* global_rst;
+float yolo_step;
+int yolo_batch_size;
 
 inline float sigmoid(float x){
     return 1/(1 +expf(-x) );  
 }
     
 
-void yolo_cpp(int32_t *vec, int batch_n, int32_t* rst)
+void *yolo_thread(void* thr)
 {
-    
-       for(int bc=0;bc<batch_n;bc++)
+    int i=(int) thr;
+
+    int start = (int) (yolo_step * i + 0.01);
+    int end;
+    if (i < YOLO_THREAD_NUM - 1) {
+        end = (int)(yolo_step * (i + 1) + 0.01);
+    } else {
+        end = yolo_batch_size;
+    }
+
+
+    int32_t* vec=global_vec+start*vecoffset;
+    int32_t* rst=global_rst+start*4;
+
+    for(int bc=start;bc<end;bc++)
     {
         int32_t (*castarr)[6][6]= (int32_t (*)[6][6] ) vec;
-
-
         int max_idx=0;
-        int max_sum=INT32_MIN;
+        int32_t max_sum=INT32_MIN;
 
         for(int i=0;i<GRIDROW*GRIDCOL;i++)
         {
-            int sum=castarr[i][0][4]+castarr[i][1][4]+castarr[i][2][4]+castarr[i][3][4]+castarr[i][4][4]+castarr[i][5][4];
+            int32_t sum=castarr[i][0][4]+castarr[i][1][4]+castarr[i][2][4]+castarr[i][3][4]+castarr[i][4][4]+castarr[i][5][4];
+       
             if(sum>max_sum)
             {
-                sum=max_sum;
+                max_sum=sum;
                 max_idx=i;
             }
         }
+
+  
 
         float xy[2]={0,0};
         float wh[2]={0,0};
@@ -68,20 +92,25 @@ void yolo_cpp(int32_t *vec, int batch_n, int32_t* rst)
         
         for(int i=0;i<6;i++)
         {
-            xy[0]+=sigmoid(castarr[max_idx][i][0]);
-            xy[1]+=sigmoid(castarr[max_idx][i][1]);
-            wh[0]+=expf(castarr[max_idx][i][2]);
-            wh[1]+=expf(castarr[max_idx][i][3]);
+            xy[0]+=sigmoid( float( castarr[max_idx][i][0])/DIV);
+            xy[1]+=sigmoid( float( castarr[max_idx][i][1])/DIV);
+            wh[0]+=expf(     float( castarr[max_idx][i][2])/DIV);
+            wh[1]+=expf(     float( castarr[max_idx][i][3])/DIV);
         }
-        xy[0]=xy[0]/6;
-        xy[1]=xy[1]/6;
-        wh[0]=wh[0]/6;
-        wh[1]=wh[1]/6;
 
-        xy[0] *= X_SCALE;
-        xy[1] *= Y_SCALE;
-        wh[0] *= X_SCALE;
-        wh[1] *= Y_SCALE;
+
+
+  
+
+        xy[0] = (max_idx%GRIDCOL+xy[0]/6)*xy_xscale;
+        xy[1] = (max_idx/GRIDCOL+xy[1]/6)*xy_yscale;
+
+
+
+
+       
+        wh[0] *= wh_xscale;
+        wh[1] *= wh_yscale;
 
         float xmin = xy[0] - wh[0] / 2;
         float xmax = xy[0] + wh[0] / 2;
@@ -93,10 +122,35 @@ void yolo_cpp(int32_t *vec, int batch_n, int32_t* rst)
         rst[2]=ymin;
         rst[3]=ymax;
         rst+=4;
-        vec+= GRIDCOL*GRIDROW*36;
+
+
+        vec+= vecoffset;
     }
 }
 
+
+
+pthread_t yolo_pthread[YOLO_THREAD_NUM];
+
+void yolo_cpp(int32_t *vec, int batch_n, int32_t* rst){
+    
+    global_rst=rst;
+    global_vec=vec;
+
+
+    yolo_step = batch_n * 1.0 / YOLO_THREAD_NUM;
+    yolo_batch_size = batch_n;
+    
+    for (int i=0; i<YOLO_THREAD_NUM; i++)
+    {
+        pthread_create(&yolo_pthread[i], NULL, yolo_thread, (void *) i); 
+    }
+
+    for (int i=0; i<YOLO_THREAD_NUM; i++)
+    {
+        pthread_join(yolo_pthread[i], NULL);
+    }
+}
 
 
 uint8_t* buffer_ping[NUM_THREAD];
@@ -262,35 +316,11 @@ extern "C" {
     void load_image(char **paths, uint8_t *matrix, int batch_size, int row, int col, int ch) {
         load_image_cpp(paths, matrix, batch_size, row, col, ch);
     }
-    void yolo(int32_t *vec, int batch_n, float* rst){
-        yolo(vec, batch_n, rst);
+    
+    void yolo(int32_t *vec, int batch_n, int32_t* rst){
+        yolo_cpp(vec, batch_n, rst);
     }
     
 }
 
 
-// int main()
-// {
-//     int batch_size = 100;
-//     uint8_t * arr = (uint8_t *) malloc(batch_size * 360 * 640 * 3);
-//     char * paths[batch_size];
-//     for (int i=0; i < batch_size; i ++) {
-//         paths[i] = "0.jpg";
-//     }
-
-//     load_image(paths, arr, batch_size, 360, 640, 3);
-//     cout << " end " << endl;
-//     // for (int i=0; i < 100; i ++) {
-//     //     Mat image = imread("0.jpg");
-//     //     int nWidth = image.cols;
-//     //     int nHeight = image.rows;
-//     //     int nBandNum = image.channels();    
-
-        
-//     //     mat_to_arr(image, arr);
-        
-//     //     cout << nWidth << "  " << nHeight << " " << nBandNum << endl;
-
-//     // }
-//     return 0;
-// }
