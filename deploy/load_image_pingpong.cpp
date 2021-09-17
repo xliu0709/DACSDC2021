@@ -1,3 +1,12 @@
+// 1. Replace the following yolo with original yolo function in ipynb
+// def yolo(out_buffer, batch_n,_,result):
+//     out_buffer_dataptr=out_buffer.ctypes.data_as(ctypes.c_char_p)
+//     rst=np.empty( (batch_n,4),dtype=np.int32)
+//     rst_dataptr=rst.ctypes.data_as(ctypes.c_char_p)
+//     cfuns.yolo(out_buffer_dataptr,batch_n,rst_dataptr)
+//     result.extend(rst.tolist())
+// 2. when compiling image.so add -fpermissive flag
+
 #include <stdio.h>
 #include <pthread.h>
 #include <stdlib.h>
