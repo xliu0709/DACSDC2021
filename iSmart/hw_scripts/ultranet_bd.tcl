@@ -117,7 +117,7 @@ if { $nRet != 0 } {
    return $nRet
 }
 
-set_property  ip_repo_paths  ./HLS [current_project]
+set_property  ip_repo_paths  ./ultra_core [current_project]
 
 # Rebuild user ip_repo's index before adding any source files
 update_ip_catalog -rebuild
